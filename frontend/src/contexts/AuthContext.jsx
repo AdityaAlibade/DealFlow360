@@ -7,52 +7,52 @@ export const AuthContext = createContext(null);
 export const DEMO_ACCOUNTS = {
   admin: {
     id: 'usr-admin-01',
-    name: 'Sarah Connor',
+    name: 'Admin User',
     email: 'admin@dealflow360.com',
     role: 'admin',
-    roleLabel: 'Admin / Ops Director',
-    avatar: 'SC',
+    roleLabel: 'System Administrator',
+    avatar: 'AD',
     department: 'Platform Administration',
     token: 'jwt-admin-token-dealflow360'
   },
+  sales_manager: {
+    id: 'usr-mgr-02',
+    name: 'Sales Manager',
+    email: 'salesmanager@dealflow360.com',
+    role: 'sales_manager',
+    roleLabel: 'Sales Manager (L1 Approver)',
+    avatar: 'SM',
+    department: 'Sales Leadership',
+    token: 'jwt-salesmanager-token-dealflow360'
+  },
   sales_rep: {
-    id: 'usr-rep-02',
-    name: 'Alex Rivera',
+    id: 'usr-rep-03',
+    name: 'Sales Rep',
     email: 'salesrep@dealflow360.com',
     role: 'sales_rep',
     roleLabel: 'Sales Representative',
-    avatar: 'AR',
+    avatar: 'SR',
     department: 'Enterprise Sales',
     token: 'jwt-salesrep-token-dealflow360'
   },
-  sales_manager: {
-    id: 'usr-mgr-03',
-    name: 'Marcus Vance',
-    email: 'manager@dealflow360.com',
-    role: 'sales_manager',
-    roleLabel: 'Sales Manager (L1 Approver)',
-    avatar: 'MV',
-    department: 'Sales Management',
-    token: 'jwt-manager-token-dealflow360'
-  },
   finance_ops: {
     id: 'usr-fin-04',
-    name: 'Elena Rostova',
-    email: 'finance@dealflow360.com',
+    name: 'Finance Manager',
+    email: 'financemanager@dealflow360.com',
     role: 'finance_ops',
-    roleLabel: 'Finance & Operations (L2 Approver)',
-    avatar: 'ER',
-    department: 'Finance & Fulfillment Operations',
-    token: 'jwt-finance-token-dealflow360'
+    roleLabel: 'Finance Manager (L2 Approver)',
+    avatar: 'FM',
+    department: 'Finance & Operations',
+    token: 'jwt-financemanager-token-dealflow360'
   },
   customer: {
     id: 'usr-cust-05',
-    name: 'David Sterling',
-    email: 'customer@acmecorp.com',
+    name: 'Customer Account',
+    email: 'customer@dealflow360.com',
     role: 'customer',
-    roleLabel: 'Customer / Portal User',
-    avatar: 'DS',
-    department: 'Acme Corp Procurement',
+    roleLabel: 'Customer Portal User',
+    avatar: 'CU',
+    department: 'Client Procurement',
     token: 'demo-token-123',
     portalToken: 'demo-token-123'
   }
@@ -63,6 +63,19 @@ export const AuthProvider = ({ children }) => {
     const saved = localStorage.getItem('dealflow360_user');
     if (saved) {
       try {
+        if (
+          saved.includes('Sarah Connor') ||
+          saved.includes('Marcus Vance') ||
+          saved.includes('Elena Rostova') ||
+          saved.includes('Alex Rivera') ||
+          saved.includes('David Sterling')
+        ) {
+          localStorage.removeItem('dealflow360_user');
+          localStorage.removeItem('dealflow360_auth_user');
+          localStorage.removeItem('dealflow360_token');
+          localStorage.removeItem('dealflow360_role');
+          return DEMO_ACCOUNTS.admin;
+        }
         return JSON.parse(saved);
       } catch {
         return DEMO_ACCOUNTS.admin;
@@ -75,12 +88,20 @@ export const AuthProvider = ({ children }) => {
     const savedAuth = localStorage.getItem('dealflow360_auth_user');
     if (savedAuth) {
       try {
+        if (
+          savedAuth.includes('Sarah Connor') ||
+          savedAuth.includes('Marcus Vance') ||
+          savedAuth.includes('Elena Rostova') ||
+          savedAuth.includes('Alex Rivera') ||
+          savedAuth.includes('David Sterling')
+        ) {
+          return null;
+        }
         return JSON.parse(savedAuth);
       } catch {
         return null;
       }
     }
-    // Default to initial user if admin
     return null;
   });
 
@@ -144,17 +165,50 @@ export const AuthProvider = ({ children }) => {
     return null;
   };
 
+  const directLogin = (roleKey) => {
+    const target = DEMO_ACCOUNTS[roleKey];
+    if (target) {
+      setUser(target);
+      setAuthUser(target);
+      localStorage.setItem('dealflow360_user', JSON.stringify(target));
+      localStorage.setItem('dealflow360_auth_user', JSON.stringify(target));
+      localStorage.setItem('dealflow360_token', target.token);
+      localStorage.setItem('dealflow360_role', target.role);
+      logAuditEvent({
+        user: target.name,
+        role: target.role,
+        action: 'DIRECT_ROLE_LOGIN',
+        resource: 'AUTH_SESSION',
+        resourceId: target.id,
+        result: 'SUCCESS',
+        reason: `Direct 1-click login as ${target.roleLabel}`
+      });
+      return target;
+    }
+    return null;
+  };
+
   const login = async (email, password) => {
     setLoading(true);
-    // Find matching demo account by email
-    const match = Object.values(DEMO_ACCOUNTS).find(
-      (acc) => acc.email.toLowerCase() === email.toLowerCase()
+    const cleanEmail = (email || '').trim().toLowerCase();
+    // Find matching demo account by email or alias
+    let match = Object.values(DEMO_ACCOUNTS).find(
+      (acc) => acc.email.toLowerCase() === cleanEmail
     );
+
+    if (!match) {
+      if (cleanEmail === 'manager@dealflow360.com') match = DEMO_ACCOUNTS.sales_manager;
+      if (cleanEmail === 'finance@dealflow360.com') match = DEMO_ACCOUNTS.finance_ops;
+      if (cleanEmail === 'customer@acmecorp.com') match = DEMO_ACCOUNTS.customer;
+    }
 
     if (match) {
       setUser(match);
       setAuthUser(match);
+      localStorage.setItem('dealflow360_user', JSON.stringify(match));
       localStorage.setItem('dealflow360_auth_user', JSON.stringify(match));
+      localStorage.setItem('dealflow360_token', match.token);
+      localStorage.setItem('dealflow360_role', match.role);
       logAuditEvent({
         user: match.name,
         role: match.role,
@@ -162,7 +216,7 @@ export const AuthProvider = ({ children }) => {
         resource: 'AUTH_SESSION',
         resourceId: match.id,
         result: 'SUCCESS',
-        reason: 'Authenticated successfully with demo credentials'
+        reason: 'Authenticated successfully with role credentials'
       });
       setLoading(false);
       return { success: true, user: match };
@@ -239,6 +293,7 @@ export const AuthProvider = ({ children }) => {
         permissions,
         checkPermission,
         switchRole,
+        directLogin,
         login,
         signup,
         logout,

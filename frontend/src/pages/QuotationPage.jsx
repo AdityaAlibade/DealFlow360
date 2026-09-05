@@ -29,80 +29,14 @@ const QuotationPage = () => {
 
   const pendingRequests = customerRequests.filter((r) => r.status === 'PENDING');
 
-  const quotations = [
-    {
-      id: 'Q-1042',
-      customer: 'Acme Corp',
-      tier: 'Gold',
-      amount: '$12,400',
-      status: 'Draft (Negotiation Open)',
-      statusVariant: 'warning',
-      date: 'Aug 20, 2026',
-      itemsCount: 3,
-      salesRep: 'Alex Rivera',
-      pendingCustomerRequests: pendingRequests.length
-    },
-    {
-      id: 'Q-1039',
-      customer: 'Beta Industries',
-      tier: 'Silver',
-      amount: '$45,000',
-      status: 'Pending Approval',
-      statusVariant: 'warning',
-      date: 'Aug 18, 2026',
-      itemsCount: 5,
-      salesRep: 'Marcus Vance',
-      pendingCustomerRequests: 0
-    },
-    {
-      id: 'Q-1035',
-      customer: 'Nova Retail',
-      tier: 'Bronze',
-      amount: '$28,900',
-      status: 'Approved',
-      statusVariant: 'success',
-      date: 'Aug 15, 2026',
-      itemsCount: 2,
-      salesRep: 'Alex Rivera',
-      pendingCustomerRequests: 0
-    },
-    {
-      id: 'Q-1030',
-      customer: 'Zenith Co',
-      tier: 'Gold',
-      amount: '$95,000',
-      status: 'Negotiation',
-      statusVariant: 'info',
-      date: 'Aug 12, 2026',
-      itemsCount: 6,
-      salesRep: 'J. Rao',
-      pendingCustomerRequests: 0
-    },
-    {
-      id: 'Q-1025',
-      customer: 'Apex Global',
-      tier: 'Gold',
-      amount: '$34,500',
-      status: 'Confirmed',
-      statusVariant: 'primary',
-      date: 'Aug 10, 2026',
-      itemsCount: 4,
-      salesRep: 'Sarah Lee',
-      pendingCustomerRequests: 0
-    },
-    {
-      id: 'Q-1020',
-      customer: 'Stark Enterprises',
-      tier: 'Gold',
-      amount: '$120,000',
-      status: 'Approved',
-      statusVariant: 'success',
-      date: 'Aug 05, 2026',
-      itemsCount: 8,
-      salesRep: 'Alex Rivera',
-      pendingCustomerRequests: 0
+  const [quotations] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('dealflow360_quotations') || '[]');
+    } catch {
+      return [];
     }
-  ];
+  });
+
 
   return (
     <MainLayout>
@@ -195,58 +129,81 @@ const QuotationPage = () => {
       </div>
 
       {/* Quotation Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {quotations.map((quote) => (
-          <div
-            key={quote.id}
-            onClick={() => navigate(`/quotations/${quote.id}`)}
-            className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md hover:border-[#a459a8] transition-all cursor-pointer group relative flex flex-col justify-between"
-          >
-            <div>
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-sm font-bold text-[#a459a8] group-hover:underline">
-                    {quote.id}
-                  </span>
-                  <Badge variant={quote.tier.toLowerCase()}>{quote.tier}</Badge>
-                </div>
-                <Badge variant={quote.statusVariant} dot>{quote.status}</Badge>
-              </div>
-
-              <div className="py-4">
-                <h3 className="text-base font-bold text-slate-900 group-hover:text-[#a459a8] transition-colors">
-                  {quote.customer}
-                </h3>
-                <p className="text-xs text-slate-500 mt-1">
-                  Sales Rep: <span className="font-medium text-slate-700">{quote.salesRep}</span> &bull; {quote.itemsCount} Line Items
-                </p>
-                {quote.pendingCustomerRequests > 0 && (
-                  <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-purple-100 text-purple-800 text-[10px] font-bold">
-                    <ShoppingBag className="w-3 h-3 text-[#a459a8]" />
-                    {quote.pendingCustomerRequests} Pending Product Request
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-              <div>
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Total Amount</span>
-                <p className="text-lg font-extrabold text-slate-900">{quote.amount}</p>
-              </div>
-              <div className="text-right">
-                <span className="text-[11px] text-slate-400">{quote.date}</span>
-                <div className="flex items-center gap-1 text-xs text-[#a459a8] font-semibold mt-0.5 justify-end">
-                  Open Builder <ArrowUpRight className="w-3.5 h-3.5" />
-                </div>
-              </div>
-            </div>
+      {quotations.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-4 shadow-sm">
+          <div className="w-14 h-14 bg-purple-50 text-[#a459a8] rounded-2xl flex items-center justify-center mx-auto border border-purple-100 shadow-sm">
+            <Plus className="w-7 h-7" />
           </div>
-        ))}
-      </div>
+          <div>
+            <h3 className="text-base font-bold text-slate-900">No Quotations Found</h3>
+            <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+              Get started by creating your first CPQ quotation with multi-tier customer discounts and margin protections.
+            </p>
+          </div>
+          <Button
+            variant="primary"
+            icon={Plus}
+            onClick={() => navigate('/quotations/new')}
+          >
+            Create Quotation
+          </Button>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {quotations.map((quote) => (
+              <div
+                key={quote.id}
+                onClick={() => navigate(`/quotations/${quote.id}`)}
+                className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md hover:border-[#a459a8] transition-all cursor-pointer group relative flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-sm font-bold text-[#a459a8] group-hover:underline">
+                        {quote.id}
+                      </span>
+                      <Badge variant={(quote.tier || 'standard').toLowerCase()}>{quote.tier}</Badge>
+                    </div>
+                    <Badge variant={quote.statusVariant || 'default'} dot>{quote.status}</Badge>
+                  </div>
 
-      {/* Pagination */}
-      <Pagination currentPage={currentPage} totalPages={3} onPageChange={setCurrentPage} />
+                  <div className="py-4">
+                    <h3 className="text-base font-bold text-slate-900 group-hover:text-[#a459a8] transition-colors">
+                      {quote.customer}
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Sales Rep: <span className="font-medium text-slate-700">{quote.salesRep}</span> &bull; {quote.itemsCount} Line Items
+                    </p>
+                    {quote.pendingCustomerRequests > 0 && (
+                      <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-purple-100 text-purple-800 text-[10px] font-bold">
+                        <ShoppingBag className="w-3 h-3 text-[#a459a8]" />
+                        {quote.pendingCustomerRequests} Pending Product Request
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Total Amount</span>
+                    <p className="text-lg font-extrabold text-slate-900">{quote.amount}</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[11px] text-slate-400">{quote.date}</span>
+                    <div className="flex items-center gap-1 text-xs text-[#a459a8] font-semibold mt-0.5 justify-end">
+                      Open Builder <ArrowUpRight className="w-3.5 h-3.5" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Pagination */}
+          <Pagination currentPage={currentPage} totalPages={1} onPageChange={setCurrentPage} />
+        </>
+      )}
     </MainLayout>
   );
 };

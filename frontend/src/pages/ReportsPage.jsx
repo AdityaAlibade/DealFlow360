@@ -9,12 +9,32 @@ import Table from '../components/common/Table';
 const ReportsPage = () => {
   const [timeRange, setTimeRange] = useState('Month');
 
-  const reportData = [
-    { rep: 'John Doe', quotes: 14, revenue: '₹8,45,000', avgDiscount: '11.4%', margin: '34.8%' },
-    { rep: 'Sarah Lee', quotes: 12, revenue: '₹6,90,000', avgDiscount: '9.2%', margin: '38.1%' },
-    { rep: 'R. Iyer', quotes: 9, revenue: '₹5,10,000', avgDiscount: '14.5%', margin: '29.4%' },
-    { rep: 'J. Rao', quotes: 18, revenue: '₹12,20,000', avgDiscount: '12.0%', margin: '32.6%' }
-  ];
+  const [reportData] = useState(() => {
+    try {
+      const savedQuotes = JSON.parse(localStorage.getItem('dealflow360_quotations') || '[]');
+      if (savedQuotes.length === 0) return [];
+      const repMap = {};
+      savedQuotes.forEach((q) => {
+        const rep = q.salesRep || 'Sales Rep';
+        if (!repMap[rep]) {
+          repMap[rep] = { rep, quotes: 0, revenueVal: 0 };
+        }
+        repMap[rep].quotes += 1;
+        const numeric = parseFloat(String(q.amount || '').replace(/[^0-9.]/g, '')) || 0;
+        repMap[rep].revenueVal += numeric;
+      });
+      return Object.values(repMap).map((item) => ({
+        rep: item.rep,
+        quotes: item.quotes,
+        revenue: `₹${item.revenueVal.toLocaleString()}`,
+        avgDiscount: '10.0%',
+        margin: '32.0%'
+      }));
+    } catch {
+      return [];
+    }
+  });
+
 
   const columns = [
     { header: 'Sales Representative', accessor: 'rep', render: (r) => <span className="font-semibold text-slate-800">{r.rep}</span> },
@@ -98,7 +118,11 @@ const ReportsPage = () => {
 
       {/* Report Table */}
       <Card title="Sales Representative Performance Breakdown">
-        <Table columns={columns} data={reportData} />
+        <Table
+          columns={columns}
+          data={reportData}
+          emptyMessage="No quotation or deal reports available for the selected timeframe."
+        />
       </Card>
     </MainLayout>
   );

@@ -10,48 +10,16 @@ import Table from '../components/common/Table';
 const SubscriptionPage = () => {
   const navigate = useNavigate();
 
-  const subscriptions = [
-    {
-      id: 'SUB-101',
-      customer: 'Acme Corp',
-      plan: 'Care Plan 2yr',
-      cycle: 'Monthly',
-      nextBill: 'Sep 15, 2026',
-      amount: '₹1,200/mo',
-      status: 'Active',
-      statusVariant: 'success'
-    },
-    {
-      id: 'SUB-102',
-      customer: 'Beta Industries',
-      plan: 'Support SLA Platinum',
-      cycle: 'Quarterly',
-      nextBill: 'Nov 01, 2026',
-      amount: '₹8,500/qtr',
-      status: 'Active',
-      statusVariant: 'success'
-    },
-    {
-      id: 'SUB-103',
-      customer: 'Delta LLC',
-      plan: 'Care Plan 1yr',
-      cycle: 'Monthly',
-      nextBill: '-',
-      amount: '₹600/mo',
-      status: 'Paused',
-      statusVariant: 'warning'
-    },
-    {
-      id: 'SUB-104',
-      customer: 'Nova Retail',
-      plan: 'Cloud License Pro',
-      cycle: 'Annual',
-      nextBill: 'Dec 31, 2026',
-      amount: '₹24,000/yr',
-      status: 'Active',
-      statusVariant: 'success'
+  const [subscriptions] = React.useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('dealflow360_subscriptions') || '[]');
+    } catch {
+      return [];
     }
-  ];
+  });
+
+  const activeCount = subscriptions.filter((s) => s.status === 'Active').length;
+  const pausedCount = subscriptions.filter((s) => s.status === 'Paused').length;
 
   const columns = [
     { header: 'Customer', accessor: 'customer', render: (r) => <span className="font-semibold text-slate-800">{r.customer}</span> },
@@ -62,7 +30,7 @@ const SubscriptionPage = () => {
     {
       header: 'Status',
       accessor: 'status',
-      render: (r) => <Badge variant={r.statusVariant} dot>{r.status}</Badge>
+      render: (r) => <Badge variant={r.statusVariant || 'default'} dot>{r.status}</Badge>
     }
   ];
 
@@ -74,9 +42,8 @@ const SubscriptionPage = () => {
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Subscriptions</h1>
             <div className="flex items-center gap-2 text-xs">
-              <Badge variant="success">18 Active</Badge>
-              <Badge variant="warning">2 Paused</Badge>
-              <Badge variant="danger">3 Cancelled</Badge>
+              <Badge variant="success">{activeCount} Active</Badge>
+              {pausedCount > 0 && <Badge variant="warning">{pausedCount} Paused</Badge>}
             </div>
           </div>
           <p className="text-xs text-slate-500 mt-1">Recurring contracts, SaaS licenses, and automated billing schedules</p>
@@ -95,6 +62,7 @@ const SubscriptionPage = () => {
         <Table
           columns={columns}
           data={subscriptions}
+          emptyMessage="No active subscription contracts found. Click '+ New Plan (Admin)' to configure plans."
           onRowClick={(row) => navigate(`/subscriptions/${row.id}`)}
         />
       </Card>

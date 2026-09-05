@@ -9,12 +9,7 @@ import Table from '../components/common/Table';
 const FulfillmentPage = () => {
   const navigate = useNavigate();
 
-  const stockData = [
-    { warehouse: 'Main Warehouse (BOM-1)', product: 'Laptop Pro 14', inStock: 40, reserved: 18, available: 22 },
-    { warehouse: 'East Depot (CCU-1)', product: 'Laptop Pro 14', inStock: 10, reserved: 6, available: 4 },
-    { warehouse: 'Main Warehouse (BOM-1)', product: 'Docking Station USB-C', inStock: 65, reserved: 12, available: 53 },
-    { warehouse: 'South Hub (BLR-1)', product: 'Server Blade GenX', inStock: 12, reserved: 8, available: 4 },
-  ];
+  const stockData = [];
 
   const stockColumns = [
     { header: 'Warehouse Location', accessor: 'warehouse', render: (r) => <span className="font-semibold text-slate-800">{r.warehouse}</span> },
@@ -32,32 +27,8 @@ const FulfillmentPage = () => {
     }
   ];
 
-  const ordersData = [
-    {
-      order: 'Q-1042',
-      customer: 'Acme Corp',
-      status: 'Split Pending',
-      statusVariant: 'warning',
-      warehouses: 'Main + East Depot',
-      qty: '24 Units'
-    },
-    {
-      order: 'Q-1030',
-      customer: 'Zenith Co',
-      status: 'Backorder',
-      statusVariant: 'danger',
-      warehouses: 'East Depot',
-      qty: '12 Units'
-    },
-    {
-      order: 'Q-1025',
-      customer: 'Apex Global',
-      status: 'Fulfilled',
-      statusVariant: 'success',
-      warehouses: 'South Hub',
-      qty: '8 Units'
-    }
-  ];
+  const ordersData = [];
+
 
   const ordersColumns = [
     {
@@ -89,7 +60,11 @@ const FulfillmentPage = () => {
 
       {/* Stock Table */}
       <Card title="Real-time Inventory on Hand" subtitle="Current warehouse stock availability">
-        <Table columns={stockColumns} data={stockData} />
+        <Table
+          columns={stockColumns}
+          data={stockData}
+          emptyMessage="No inventory stock records configured for warehouses."
+        />
       </Card>
 
       {/* Orders Awaiting Fulfillment */}
@@ -97,6 +72,7 @@ const FulfillmentPage = () => {
         <Table
           columns={ordersColumns}
           data={ordersData}
+          emptyMessage="No orders currently awaiting fulfillment."
           onRowClick={(row) => navigate(`/fulfillment/${row.order}`)}
         />
       </Card>

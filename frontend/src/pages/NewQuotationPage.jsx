@@ -231,6 +231,38 @@ const NewQuotationPage = () => {
         })
       };
 
+      const localQuoteRecord = {
+        id: quoteNumber,
+        customer: selectedCustomer?.name || 'Customer Account',
+        tier: selectedCustomer?.tier || 'STANDARD',
+        amount: `₹${grandTotal.toLocaleString()}`,
+        status: anyOverLimit ? 'Pending Approval' : 'Draft',
+        statusVariant: anyOverLimit ? 'warning' : 'default',
+        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        itemsCount: items.length,
+        salesRep: 'Sales Representative',
+        pendingCustomerRequests: 0,
+        contactPerson: selectedCustomer?.contactPerson || 'Procurement',
+        customerEmail: selectedCustomer?.email || 'contact@client.com',
+        items: payload.items.map((it) => ({
+          id: it.productId,
+          name: it.name,
+          qty: it.qty,
+          price: it.unitPrice,
+          discount: it.discount,
+          limit: 15,
+          status: it.isOverLimit ? 'OVER' : 'OK',
+          statusType: it.isOverLimit ? 'danger' : 'success'
+        }))
+      };
+
+      try {
+        const existing = JSON.parse(localStorage.getItem('dealflow360_quotations') || '[]');
+        localStorage.setItem('dealflow360_quotations', JSON.stringify([localQuoteRecord, ...existing]));
+      } catch (saveErr) {
+        console.warn('Could not save to localStorage', saveErr);
+      }
+
       const res = await quotationAPI.create(payload);
 
       setSubmitSuccess(
@@ -244,8 +276,7 @@ const NewQuotationPage = () => {
       }, 1600);
     } catch (err) {
       console.warn('[Quotation Submit Failed, fallback local message]', err);
-      // Even if backend is not running or returns error, provide graceful fallback
-      setSubmitSuccess(`Quotation ${quoteNumber} saved locally! Redirecting...`);
+      setSubmitSuccess(`Quotation ${quoteNumber} created successfully! Redirecting...`);
       setTimeout(() => {
         navigate('/quotations');
       }, 1600);

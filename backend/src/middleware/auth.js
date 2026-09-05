@@ -8,11 +8,13 @@ const jwt = require('jsonwebtoken');
 const config = require('../config');
 
 const DEMO_TOKENS = {
-  'jwt-admin-token-dealflow360': { id: 'usr-admin-01', email: 'admin@dealflow360.com', role: 'ADMIN', fullName: 'Sarah Connor' },
-  'jwt-salesrep-token-dealflow360': { id: 'usr-rep-02', email: 'salesrep@dealflow360.com', role: 'SALES_REP', fullName: 'Alex Rivera' },
-  'jwt-manager-token-dealflow360': { id: 'usr-mgr-03', email: 'manager@dealflow360.com', role: 'SALES_MANAGER', fullName: 'Marcus Vance' },
-  'jwt-finance-token-dealflow360': { id: 'usr-fin-04', email: 'finance@dealflow360.com', role: 'FINANCE_OPS', fullName: 'Elena Rostova' },
-  'demo-token-123': { id: 'usr-cust-05', email: 'customer@acmecorp.com', role: 'CUSTOMER', fullName: 'David Sterling' }
+  'jwt-admin-token-dealflow360': { id: 'usr-admin-01', email: 'admin@dealflow360.com', role: 'ADMIN', fullName: 'Admin User' },
+  'jwt-salesmanager-token-dealflow360': { id: 'usr-mgr-02', email: 'salesmanager@dealflow360.com', role: 'SALES_MANAGER', fullName: 'Sales Manager' },
+  'jwt-manager-token-dealflow360': { id: 'usr-mgr-02', email: 'salesmanager@dealflow360.com', role: 'SALES_MANAGER', fullName: 'Sales Manager' },
+  'jwt-salesrep-token-dealflow360': { id: 'usr-rep-03', email: 'salesrep@dealflow360.com', role: 'SALES_REP', fullName: 'Sales Rep' },
+  'jwt-financemanager-token-dealflow360': { id: 'usr-fin-04', email: 'financemanager@dealflow360.com', role: 'FINANCE_OPS', fullName: 'Finance Manager' },
+  'jwt-finance-token-dealflow360': { id: 'usr-fin-04', email: 'financemanager@dealflow360.com', role: 'FINANCE_OPS', fullName: 'Finance Manager' },
+  'demo-token-123': { id: 'usr-cust-05', email: 'customer@dealflow360.com', role: 'CUSTOMER', fullName: 'Customer User' }
 };
 
 const verifyToken = (req, res, next) => {

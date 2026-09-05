@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
   CheckCircle2,
@@ -229,9 +229,9 @@ const CustomerPortalPage = () => {
           <p className="text-xs text-slate-600">{error || 'Invalid or expired customer token. You are not authorized to view this quotation.'}</p>
           <p className="text-[11px] text-slate-400">Token provided: <span className="font-mono">{token}</span></p>
           <div className="pt-2">
-            <a href="/customer-portal/demo-token-123" className="text-xs text-[#a459a8] font-bold hover:underline">
-              Try Demo Valid Token (demo-token-123)
-            </a>
+            <Link to="/login" className="text-xs text-slate-500 hover:text-slate-800 underline">
+              Return to Sign In
+            </Link>
           </div>
         </div>
       </div>

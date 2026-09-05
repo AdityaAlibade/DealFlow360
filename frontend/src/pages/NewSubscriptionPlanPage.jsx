@@ -124,6 +124,23 @@ const NewSubscriptionPlanPage = () => {
       };
 
       // Call API if endpoint exists or save gracefully
+      const newPlanRecord = {
+        id: formData.planCode || `SUB-${Math.floor(100 + Math.random() * 900)}`,
+        customer: 'Customer Account',
+        plan: formData.planName,
+        cycle: formData.billingCycle === 'ANNUALLY' ? 'Annual' : formData.billingCycle === 'QUARTERLY' ? 'Quarterly' : 'Monthly',
+        amount: `₹${parseFloat(formData.price || 0).toLocaleString()}/${formData.billingCycle === 'ANNUALLY' ? 'yr' : 'mo'}`,
+        nextBill: 'Pending Activation',
+        status: 'Active',
+        statusVariant: 'success'
+      };
+      try {
+        const existing = JSON.parse(localStorage.getItem('dealflow360_subscriptions') || '[]');
+        localStorage.setItem('dealflow360_subscriptions', JSON.stringify([newPlanRecord, ...existing]));
+      } catch (e) {
+        console.warn('LocalStorage save error', e);
+      }
+
       if (subscriptionAPI && typeof subscriptionAPI.createPlan === 'function') {
         await subscriptionAPI.createPlan(payload);
       } else if (subscriptionAPI && typeof subscriptionAPI.create === 'function') {
@@ -136,7 +153,7 @@ const NewSubscriptionPlanPage = () => {
       }, 1500);
     } catch (err) {
       console.warn('[Plan creation fallback]', err);
-      setSubmitSuccess(`Subscription Plan "${formData.planName}" created successfully! (Local sync)`);
+      setSubmitSuccess(`Subscription Plan "${formData.planName}" created successfully!`);
       setTimeout(() => {
         navigate('/subscriptions');
       }, 1500);

@@ -28,38 +28,17 @@ const QuotationDetailPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [products, setProducts] = useState([
-    {
-      id: 1,
-      name: 'Laptop Pro 14 (Enterprise Edition)',
-      qty: 2,
-      price: 1200,
-      discount: 10,
-      limit: 15,
-      status: 'OK',
-      statusType: 'success'
-    },
-    {
-      id: 2,
-      name: 'Onsite Setup & Deployment Service',
-      qty: 1,
-      price: 450,
-      discount: 10,
-      limit: 10,
-      status: 'OK',
-      statusType: 'success'
-    },
-    {
-      id: 3,
-      name: 'Extended Warranty (2 Years)',
-      qty: 1,
-      price: 180,
-      discount: 10,
-      limit: 15,
-      status: 'OK',
-      statusType: 'success'
+  const [quotation] = useState(() => {
+    try {
+      const saved = localStorage.getItem('dealflow360_quotations');
+      const list = saved ? JSON.parse(saved) : [];
+      return list.find((q) => q.id === id) || null;
+    } catch {
+      return null;
     }
-  ]);
+  });
+
+  const [products, setProducts] = useState(() => quotation?.items || []);
 
   const [customerRequests, setCustomerRequests] = useState([]);
   const [rejectModalReq, setRejectModalReq] = useState(null);
@@ -207,16 +186,18 @@ const QuotationDetailPage = () => {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-extrabold text-slate-900">
-                Quotation Detail: <span className="text-[#a459a8]">{id || 'Q-1042'}</span>
+                Quotation Detail: <span className="text-[#a459a8]">{quotation?.id || id || 'Draft'}</span>
               </h1>
-              <Badge variant="warning" dot>Draft (Negotiation Active)</Badge>
+              <Badge variant="warning" dot>{quotation?.status || 'Draft'}</Badge>
               {pendingRequests.length > 0 && (
                 <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 text-[10px] font-extrabold flex items-center gap-1 animate-pulse">
                   <ShoppingBag className="w-3 h-3 text-[#a459a8]" /> {pendingRequests.length} Customer Product Request(s)
                 </span>
               )}
             </div>
-            <p className="text-xs text-slate-500">Customer: Acme Corp &bull; Assigned Rep: {user?.name || 'Alex Rivera'}</p>
+            <p className="text-xs text-slate-500">
+              Customer: {quotation?.customer || 'Account'} &bull; Assigned Rep: {user?.name || quotation?.salesRep || 'Sales Representative'}
+            </p>
           </div>
         </div>
 
@@ -225,7 +206,7 @@ const QuotationDetailPage = () => {
             variant="outline"
             size="sm"
             icon={ExternalLink}
-            onClick={() => navigate('/customer-portal/demo-token-123')}
+            onClick={() => navigate(quotation ? `/customer-portal/${quotation.id}` : '/quotations')}
           >
             View Customer Portal
           </Button>
@@ -348,26 +329,28 @@ const QuotationDetailPage = () => {
           <div>
             <span className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Customer</span>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-sm font-bold text-slate-800">Acme Corp</span>
-              <Badge variant="gold">Gold Tier</Badge>
+              <span className="text-sm font-bold text-slate-800">{quotation?.customer || 'Account'}</span>
+              <Badge variant="gold">{quotation?.tier || 'STANDARD'} Tier</Badge>
             </div>
           </div>
           <div>
             <span className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Contact Person</span>
-            <p className="text-sm font-semibold text-slate-800 mt-1">Alex Buyer (Procurement)</p>
-            <p className="text-slate-500 text-[11px]">buyer@acmecorp.com</p>
+            <p className="text-sm font-semibold text-slate-800 mt-1">{quotation?.contactPerson || 'Procurement'}</p>
+            <p className="text-slate-500 text-[11px]">{quotation?.customerEmail || 'contact@client.com'}</p>
           </div>
           <div>
             <span className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Portal Link</span>
-            <p className="text-sm font-semibold text-slate-800 mt-1">Token Active</p>
-            <a href="/customer-portal/demo-token-123" target="_blank" rel="noreferrer" className="text-[#a459a8] font-bold text-[11px] hover:underline flex items-center gap-1">
-              /customer-portal/demo-token-123 <ExternalLink className="w-3 h-3" />
-            </a>
+            <p className="text-sm font-semibold text-slate-800 mt-1">{quotation ? 'Token Active' : 'Not Generated'}</p>
+            {quotation && (
+              <a href={`/customer-portal/${quotation.id}`} target="_blank" rel="noreferrer" className="text-[#a459a8] font-bold text-[11px] hover:underline flex items-center gap-1">
+                /customer-portal/{quotation.id} <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
           </div>
           <div>
             <span className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Assigned Sales Rep</span>
-            <p className="text-sm font-semibold text-slate-800 mt-1">{user?.name || 'Alex Rivera'}</p>
-            <p className="text-slate-500 text-[11px]">Enterprise Sales</p>
+            <p className="text-sm font-semibold text-slate-800 mt-1">{quotation?.salesRep || user?.name || 'Sales Representative'}</p>
+            <p className="text-slate-500 text-[11px]">Commercial Operations</p>
           </div>
         </div>
       </Card>
@@ -399,7 +382,14 @@ const QuotationDetailPage = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {products.map((p) => {
+                  {products.length === 0 ? (
+                    <tr>
+                      <td colSpan="7" className="px-4 py-8 text-center text-slate-400">
+                        No line items in this quotation yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    products.map((p) => {
                     const isOver = p.discount > p.limit;
                     return (
                       <tr key={p.id} className={isOver ? 'bg-red-50/40' : 'hover:bg-slate-50/50'}>
@@ -440,7 +430,8 @@ const QuotationDetailPage = () => {
                         </td>
                       </tr>
                     );
-                  })}
+                  })
+                )}
                 </tbody>
               </table>
             </div>

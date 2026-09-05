@@ -10,59 +10,33 @@ const ApprovalPage = () => {
   const [activeTab, setActiveTab] = useState('pending');
   const [pendingOnly, setPendingOnly] = useState(false);
 
+  const [approvalRows] = useState(() => {
+    try {
+      const savedQuotes = JSON.parse(localStorage.getItem('dealflow360_quotations') || '[]');
+      const pendingQuotes = savedQuotes.filter((q) => (q.status || '').toLowerCase().includes('pending'));
+      return pendingQuotes.map((q) => ({
+        id: q.id,
+        customer: q.customer,
+        risk: 'MEDIUM',
+        riskColor: 'medium',
+        stage: 'Sales Manager',
+        assignedTo: 'Governance Approver',
+        date: q.date,
+        status: 'Pending',
+        reason: 'Commercial discount limits require approval'
+      }));
+    } catch {
+      return [];
+    }
+  });
+
   const tabs = [
-    { key: 'all', label: 'All', count: 16 },
-    { key: 'pending', label: 'Pending', count: 3 },
-    { key: 'approved', label: 'Approved', count: 12 },
-    { key: 'returned', label: 'Returned', count: 1 }
+    { key: 'all', label: 'All', count: approvalRows.length },
+    { key: 'pending', label: 'Pending', count: approvalRows.filter(r => r.status === 'Pending').length },
+    { key: 'approved', label: 'Approved', count: approvalRows.filter(r => r.status === 'Approved').length },
+    { key: 'returned', label: 'Returned', count: approvalRows.filter(r => r.status === 'Returned').length }
   ];
 
-  const approvalRows = [
-    {
-      id: 'Q-1042',
-      customer: 'Acme Corp',
-      risk: 'HIGH',
-      riskColor: 'high',
-      stage: 'Sales Manager',
-      assignedTo: 'M. Shah',
-      date: 'Aug 20, 2026',
-      status: 'Pending',
-      reason: '18% discount on services (>10% limit)'
-    },
-    {
-      id: 'Q-1039',
-      customer: 'Beta Industries',
-      risk: 'MEDIUM',
-      riskColor: 'medium',
-      stage: 'Finance Approver',
-      assignedTo: 'R. Iyer',
-      date: 'Aug 18, 2026',
-      status: 'Pending',
-      reason: 'Volume contract payment term waiver'
-    },
-    {
-      id: 'Q-1045',
-      customer: 'Wayne Enterprises',
-      risk: 'HIGH',
-      riskColor: 'high',
-      stage: 'VP Finance',
-      assignedTo: 'K. Patel',
-      date: 'Aug 17, 2026',
-      status: 'Pending',
-      reason: '22% blended margin violation'
-    },
-    {
-      id: 'Q-1035',
-      customer: 'Nova Retail',
-      risk: 'LOW',
-      riskColor: 'low',
-      stage: 'Auto-Approved',
-      assignedTo: 'System Engine',
-      date: 'Aug 15, 2026',
-      status: 'Approved',
-      reason: 'Standard catalog pricing'
-    }
-  ];
 
   const filteredRows = approvalRows.filter((r) => {
     if (activeTab === 'pending') return r.status === 'Pending';
@@ -159,6 +133,7 @@ const ApprovalPage = () => {
       <Table
         columns={columns}
         data={filteredRows}
+        emptyMessage="No quotations currently awaiting review or approval."
         onRowClick={(row) => navigate(`/approvals/${row.id}`)}
       />
     </MainLayout>

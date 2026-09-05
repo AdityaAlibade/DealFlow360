@@ -9,40 +9,16 @@ import Table from '../components/common/Table';
 const InvoicePage = () => {
   const navigate = useNavigate();
 
-  const invoices = [
-    {
-      id: 'INV-1042',
-      customer: 'Acme Corp',
-      amount: '₹2,730',
-      status: 'Unpaid',
-      statusVariant: 'danger',
-      dueDate: 'Sep 10, 2026'
-    },
-    {
-      id: 'INV-1043',
-      customer: 'Acme Corp',
-      amount: '₹46',
-      status: 'Paid',
-      statusVariant: 'success',
-      dueDate: 'Sep 15, 2026'
-    },
-    {
-      id: 'INV-1038',
-      customer: 'Nova Retail',
-      amount: '₹9,750',
-      status: 'Paid',
-      statusVariant: 'success',
-      dueDate: 'Aug 30, 2026'
-    },
-    {
-      id: 'INV-1035',
-      customer: 'Beta Industries',
-      amount: '₹45,000',
-      status: 'Paid',
-      statusVariant: 'success',
-      dueDate: 'Aug 25, 2026'
+  const [invoices] = React.useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('dealflow360_invoices') || '[]');
+    } catch {
+      return [];
     }
-  ];
+  });
+
+  const unpaidCount = invoices.filter((i) => (i.status || '').toLowerCase() === 'unpaid').length;
+  const paidCount = invoices.filter((i) => (i.status || '').toLowerCase() === 'paid').length;
 
   const columns = [
     {
@@ -60,7 +36,7 @@ const InvoicePage = () => {
       header: 'Payment Status',
       accessor: 'status',
       render: (r) => (
-        <Badge variant={r.statusVariant} dot>
+        <Badge variant={r.statusVariant || 'default'} dot>
           {r.status === 'Unpaid' ? '🔴 Unpaid' : '🟢 Paid'}
         </Badge>
       )
@@ -75,10 +51,12 @@ const InvoicePage = () => {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Invoices</h1>
-            <div className="flex items-center gap-2 text-xs">
-              <Badge variant="danger">4 Unpaid</Badge>
-              <Badge variant="success">21 Paid</Badge>
-            </div>
+            {(unpaidCount > 0 || paidCount > 0) && (
+              <div className="flex items-center gap-2 text-xs">
+                {unpaidCount > 0 && <Badge variant="danger">{unpaidCount} Unpaid</Badge>}
+                {paidCount > 0 && <Badge variant="success">{paidCount} Paid</Badge>}
+              </div>
+            )}
           </div>
           <p className="text-xs text-slate-500 mt-1">Automated tax invoices, payment reconciliation, and customer ledger</p>
         </div>
@@ -88,6 +66,7 @@ const InvoicePage = () => {
         <Table
           columns={columns}
           data={invoices}
+          emptyMessage="No invoices generated yet."
           onRowClick={(row) => navigate(`/invoices/${row.id}`)}
         />
       </Card>

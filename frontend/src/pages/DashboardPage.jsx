@@ -19,84 +19,86 @@ import Button from '../components/common/Button';
 const DashboardPage = () => {
   const navigate = useNavigate();
 
+  const [quotations] = React.useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('dealflow360_quotations') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  const totalRev = quotations.reduce((acc, q) => {
+    const numeric = parseFloat(String(q.amount || '').replace(/[^0-9.]/g, '')) || 0;
+    return acc + numeric;
+  }, 0);
+
+  const activeCount = quotations.length;
+  const pendingCount = quotations.filter((q) => (q.status || '').toLowerCase().includes('pending')).length;
+  const approvedCount = quotations.filter((q) => (q.status || '').toLowerCase().includes('approved')).length;
+  const confirmedCount = quotations.filter((q) => (q.status || '').toLowerCase().includes('confirmed')).length;
+  const draftCount = quotations.filter((q) => (q.status || '').toLowerCase().includes('draft')).length;
+
   const metricCards = [
     {
       title: 'Total Revenue',
-      value: '₹28.5L',
-      change: '+18.4% vs last month',
+      value: `₹${totalRev.toLocaleString()}`,
+      change: activeCount > 0 ? `${activeCount} quotes active` : 'No revenue recorded yet',
       icon: DollarSign,
       color: 'bg-emerald-50 text-emerald-600 border-emerald-200'
     },
     {
       title: 'Active Quotes',
-      value: '24',
-      change: '+4 new today',
+      value: String(activeCount),
+      change: activeCount > 0 ? `${draftCount} in draft` : 'No active quotes',
       icon: FileText,
       color: 'bg-sky-50 text-sky-600 border-sky-200'
     },
     {
       title: 'Pending Approvals',
-      value: '8',
-      change: '3 require attention',
+      value: String(pendingCount),
+      change: pendingCount > 0 ? `${pendingCount} require sign-off` : 'All clear',
       icon: Clock,
       color: 'bg-amber-50 text-amber-600 border-amber-200',
-      isWarning: true
+      isWarning: pendingCount > 0
     },
     {
       title: 'Deal Health',
-      value: '42 / 53',
-      change: '79% healthy deals',
+      value: activeCount > 0 ? `${approvedCount + confirmedCount} / ${activeCount}` : '0 / 0',
+      change: activeCount > 0 ? `${Math.round(((approvedCount + confirmedCount) / activeCount) * 100)}% healthy deals` : 'No deals evaluated',
       icon: CheckCircle2,
       color: 'bg-purple-50 text-[#a459a8] border-purple-200'
     }
   ];
 
-  const recentActivities = [
-    { id: 1, icon: FileText, text: 'Quote Q-1042 (Acme Corp) submitted for approval', time: '10 mins ago', user: 'J. Rao' },
-    { id: 2, icon: CheckCircle2, text: 'Quote Q-1039 approved by Sales Manager', time: '45 mins ago', user: 'M. Shah' },
-    { id: 3, icon: AlertTriangle, text: 'High discount alert flagged on Q-1045', time: '2 hours ago', user: 'Deal Sentinel' },
-    { id: 4, icon: DollarSign, text: 'Invoice INV-1038 marked Paid (₹9,750)', time: '4 hours ago', user: 'Finance' },
-    { id: 5, icon: Activity, text: 'Counter proposal received on Customer Portal Q-1030', time: '5 hours ago', user: 'Customer' },
-  ];
+  const recentActivities = [];
 
   const kanbanColumns = [
     {
       title: 'Draft',
-      count: 6,
+      count: draftCount,
       color: 'border-slate-300 bg-slate-50',
-      items: [
-        { id: 'Q-1048', customer: 'Nexus Tech', amount: '₹18,400', rep: 'John Doe' },
-        { id: 'Q-1049', customer: 'Orbit Retail', amount: '₹7,200', rep: 'Sarah Lee' },
-      ]
+      items: quotations.filter((q) => (q.status || '').toLowerCase().includes('draft'))
     },
     {
       title: 'Pending Approval',
-      count: 8,
+      count: pendingCount,
       color: 'border-amber-300 bg-amber-50/40',
-      items: [
-        { id: 'Q-1042', customer: 'Acme Corp', amount: '₹12,400', rep: 'J. Rao', tag: 'High Risk' },
-        { id: 'Q-1039', customer: 'Beta Ind.', amount: '₹45,000', rep: 'R. Iyer' },
-      ]
+      items: quotations.filter((q) => (q.status || '').toLowerCase().includes('pending'))
     },
     {
       title: 'Approved',
-      count: 7,
+      count: approvedCount,
       color: 'border-emerald-300 bg-emerald-50/40',
-      items: [
-        { id: 'Q-1035', customer: 'Nova Retail', amount: '₹28,900', rep: 'John Doe' },
-        { id: 'Q-1033', customer: 'Skyline Corp', amount: '₹62,000', rep: 'Sarah Lee' },
-      ]
+      items: quotations.filter((q) => (q.status || '').toLowerCase().includes('approved'))
     },
     {
       title: 'Confirmed',
-      count: 12,
+      count: confirmedCount,
       color: 'border-purple-300 bg-purple-50/40',
-      items: [
-        { id: 'Q-1028', customer: 'Zenith Co', amount: '₹95,000', rep: 'J. Rao' },
-        { id: 'Q-1025', customer: 'Apex Global', amount: '₹34,500', rep: 'John Doe' },
-      ]
+      items: quotations.filter((q) => (q.status || '').toLowerCase().includes('confirmed'))
     }
   ];
+
 
   return (
     <MainLayout>
@@ -250,23 +252,29 @@ const DashboardPage = () => {
               </div>
 
               <div className="space-y-2">
-                {col.items.map((item, iIdx) => (
-                  <div
-                    key={iIdx}
-                    onClick={() => navigate(`/quotations/${item.id}`)}
-                    className="p-3 bg-white rounded-lg border border-slate-200 shadow-sm hover:border-[#a459a8] cursor-pointer transition-all hover:shadow"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono font-bold text-[#a459a8]">{item.id}</span>
-                      {item.tag && <Badge variant="danger" className="text-[9px] py-0">{item.tag}</Badge>}
-                    </div>
-                    <p className="text-xs font-semibold text-slate-800 mt-1 truncate">{item.customer}</p>
-                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 text-[11px] text-slate-500">
-                      <span>{item.rep}</span>
-                      <span className="font-bold text-slate-900">{item.amount}</span>
-                    </div>
+                {col.items.length === 0 ? (
+                  <div className="py-6 px-3 border border-dashed border-slate-300 rounded-lg text-center text-[11px] text-slate-400 font-medium">
+                    No quotations in {col.title}
                   </div>
-                ))}
+                ) : (
+                  col.items.map((item, iIdx) => (
+                    <div
+                      key={iIdx}
+                      onClick={() => navigate(`/quotations/${item.id}`)}
+                      className="p-3 bg-white rounded-lg border border-slate-200 shadow-sm hover:border-[#a459a8] cursor-pointer transition-all hover:shadow"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-mono font-bold text-[#a459a8]">{item.id}</span>
+                        {item.tag && <Badge variant="danger" className="text-[9px] py-0">{item.tag}</Badge>}
+                      </div>
+                      <p className="text-xs font-semibold text-slate-800 mt-1 truncate">{item.customer}</p>
+                      <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 text-[11px] text-slate-500">
+                        <span>{item.rep}</span>
+                        <span className="font-bold text-slate-900">{item.amount}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           ))}
@@ -283,25 +291,31 @@ const DashboardPage = () => {
           </button>
         }
       >
-        <ul className="divide-y divide-slate-100">
-          {recentActivities.map((act) => {
-            const Icon = act.icon;
-            return (
-              <li key={act.id} className="py-3 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-slate-100 text-slate-600">
-                    <Icon className="w-3.5 h-3.5" />
+        {recentActivities.length === 0 ? (
+          <div className="py-8 text-center text-slate-400 text-xs">
+            No recent activity recorded yet. Create a new quotation to get started.
+          </div>
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {recentActivities.map((act) => {
+              const Icon = act.icon;
+              return (
+                <li key={act.id} className="py-3 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-slate-100 text-slate-600">
+                      <Icon className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-slate-800">{act.text}</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">By {act.user}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium text-slate-800">{act.text}</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">By {act.user}</p>
-                  </div>
-                </div>
-                <span className="text-slate-400 font-mono text-[11px]">{act.time}</span>
-              </li>
-            );
-          })}
-        </ul>
+                  <span className="text-slate-400 font-mono text-[11px]">{act.time}</span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </Card>
     </MainLayout>
   );

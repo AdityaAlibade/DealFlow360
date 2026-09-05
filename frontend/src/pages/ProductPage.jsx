@@ -10,44 +10,8 @@ import Table from '../components/common/Table';
 const ProductPage = () => {
   const navigate = useNavigate();
 
-  const products = [
-    {
-      id: 'PRD-101',
-      name: 'Laptop Pro 14',
-      category: 'Hardware',
-      variants: '2 Variants (16GB, 32GB)',
-      price: '₹1,000',
-      unit: 'Each',
-      status: 'Active'
-    },
-    {
-      id: 'PRD-102',
-      name: 'Onsite Setup Service',
-      category: 'Services',
-      variants: '-',
-      price: '₹450',
-      unit: 'Each',
-      status: 'Active'
-    },
-    {
-      id: 'PRD-103',
-      name: 'Docking Station USB-C',
-      category: 'Hardware',
-      variants: '2 Variants',
-      price: '₹180',
-      unit: 'Each',
-      status: 'Active'
-    },
-    {
-      id: 'PRD-104',
-      name: 'Care Plan 3 years',
-      category: 'Subscription',
-      variants: '-',
-      price: '₹10/month',
-      unit: 'Recurring',
-      status: 'Active'
-    }
-  ];
+  const products = [];
+
 
   const columns = [
     {
@@ -93,6 +57,7 @@ const ProductPage = () => {
         <Table
           columns={columns}
           data={products}
+          emptyMessage="No catalog products configured."
           onRowClick={(row) => navigate(`/products/${row.id}`)}
         />
       </Card>

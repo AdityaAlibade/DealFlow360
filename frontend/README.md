@@ -30,7 +30,7 @@ frontend/
 │   ├── pages/           # 17 Main Route Views
 │   ├── routes/          # Application router configuration
 │   ├── styles/          # Tailwind CSS and theme definitions
-│   └── utils/           # Formatters, constants, helpers, validators
+│   └── utils/           # Formatters, constants, helpers, 
 ```
 
 ## Getting Started

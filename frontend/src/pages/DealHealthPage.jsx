@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Activity, AlertTriangle, CheckCircle2, XCircle, ArrowUpRight, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, XCircle, ArrowUpRight } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
 import Card from '../components/common/Card';
 import Badge from '../components/common/Badge';

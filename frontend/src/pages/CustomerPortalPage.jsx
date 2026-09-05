@@ -30,7 +30,7 @@ const CustomerPortalPage = () => {
             <span className="font-extrabold text-base text-slate-900">
               DealFlow<span className="text-[#a459a8]">360</span> Customer Portal
             </span>
-            <p className="text-[10px] text-slate-400">Secure Negotiation Session</p>
+            <p className="text-[10px] text-slate-400">Secure Negotiation Session: <span className="font-mono">{token || 'Q-1042'}</span></p>
           </div>
         </div>
 

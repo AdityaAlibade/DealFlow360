@@ -1,9 +1,8 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Repeat, Edit, XCircle } from 'lucide-react';
+import { ArrowLeft, Edit, XCircle } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
 import Card from '../components/common/Card';
-import Badge from '../components/common/Badge';
 import Button from '../components/common/Button';
 
 const SubscriptionDetailPage = () => {

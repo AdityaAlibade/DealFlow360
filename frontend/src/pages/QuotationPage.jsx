@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Filter, ArrowUpRight, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { Search, Plus, Filter, ArrowUpRight } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
 import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';

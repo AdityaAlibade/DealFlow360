@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Bell, User, Settings, LogOut, ChevronDown, CheckCircle2 } from 'lucide-react';
+import { Search, Bell, User, Settings, LogOut, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Header = () => {

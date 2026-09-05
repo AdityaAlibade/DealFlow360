@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BarChart3, Download, Filter, Calendar } from 'lucide-react';
+import { BarChart3, Download } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';

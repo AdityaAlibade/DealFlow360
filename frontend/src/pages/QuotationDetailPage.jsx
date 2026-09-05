@@ -7,9 +7,6 @@ import {
   Plus,
   Trash2,
   AlertTriangle,
-  CheckCircle2,
-  Sparkles,
-  ShoppingBag,
   ExternalLink
 } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';

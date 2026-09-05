@@ -1,9 +1,8 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Split, Truck, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
 import Card from '../components/common/Card';
-import Badge from '../components/common/Badge';
 import Button from '../components/common/Button';
 
 const FulfillmentDetailPage = () => {

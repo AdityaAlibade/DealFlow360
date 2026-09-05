@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, X, RotateCcw, AlertTriangle, ShieldCheck, Clock } from 'lucide-react';
+import { ArrowLeft, Check, X, RotateCcw } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
 import Card from '../components/common/Card';
 import Badge from '../components/common/Badge';

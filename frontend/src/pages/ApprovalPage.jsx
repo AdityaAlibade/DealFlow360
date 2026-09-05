@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, Clock, AlertTriangle, Filter, ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
-import Card from '../components/common/Card';
 import Badge from '../components/common/Badge';
 import Table from '../components/common/Table';
 

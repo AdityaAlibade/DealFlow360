@@ -9,11 +9,11 @@ export const QuotationProvider = ({ children }) => {
   // TODO: Implement quote builder actions (addItem, removeItem, updateDiscount)
 
   const addItem = (product) => {
-    // TODO: Add item to quote cart
+    setCartItems((prev) => [...prev, product]);
   };
 
   const removeItem = (productId) => {
-    // TODO: Remove item from quote cart
+    setCartItems((prev) => prev.filter((p) => p.id !== productId));
   };
 
   const updateDiscount = (discount) => {

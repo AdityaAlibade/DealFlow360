@@ -1,6 +1,5 @@
 import React from 'react';
 import { X } from 'lucide-react';
-import Button from './Button';
 
 const Modal = ({ isOpen, onClose, title, children, footer, size = 'md' }) => {
   if (!isOpen) return null;

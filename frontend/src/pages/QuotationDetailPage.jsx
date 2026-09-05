@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -7,37 +7,47 @@ import {
   Plus,
   Trash2,
   AlertTriangle,
-  ExternalLink
+  ExternalLink,
+  ShoppingBag,
+  CheckCircle,
+  XCircle,
+  MessageSquare,
+  Sparkles,
+  Check,
+  X
 } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
 import Card from '../components/common/Card';
 import Badge from '../components/common/Badge';
 import Button from '../components/common/Button';
+import productAPI from '../api/productAPI';
+import { useAuth } from '../contexts/AuthContext';
 
 const QuotationDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [products, setProducts] = useState([
     {
       id: 1,
-      name: 'Laptop Pro 14',
+      name: 'Laptop Pro 14 (Enterprise Edition)',
       qty: 2,
       price: 1200,
-      discount: 12,
+      discount: 10,
       limit: 15,
       status: 'OK',
       statusType: 'success'
     },
     {
       id: 2,
-      name: 'Onsite Setup Service',
+      name: 'Onsite Setup & Deployment Service',
       qty: 1,
       price: 450,
-      discount: 18,
+      discount: 10,
       limit: 10,
-      status: 'OVER (+8pt)',
-      statusType: 'danger'
+      status: 'OK',
+      statusType: 'success'
     },
     {
       id: 3,
@@ -51,6 +61,87 @@ const QuotationDetailPage = () => {
     }
   ]);
 
+  const [customerRequests, setCustomerRequests] = useState([]);
+  const [rejectModalReq, setRejectModalReq] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [acceptDiscount, setAcceptDiscount] = useState(10);
+  const [feedbackToast, setFeedbackToast] = useState(null);
+
+  const fetchCustomerRequests = async () => {
+    try {
+      const res = await productAPI.getAllCustomerRequests();
+      if (res && res.data) {
+        setCustomerRequests(res.data);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch customer product requests', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchCustomerRequests();
+  }, []);
+
+  const handleAcceptCustomerRequest = async (req) => {
+    try {
+      const res = await productAPI.acceptCustomerRequest(req.id, {
+        salesRepName: user?.name || 'Alex Rivera',
+        salesResponse: `Approved and added to quotation proposal at ${acceptDiscount}% standard discount.`,
+        discountPct: acceptDiscount
+      });
+
+      // Add to local quotation lines
+      const newLine = {
+        id: Date.now(),
+        name: req.productName,
+        qty: req.quantity,
+        price: req.unitPrice,
+        discount: acceptDiscount,
+        limit: 10,
+        status: acceptDiscount > 10 ? 'OVER' : 'OK',
+        statusType: acceptDiscount > 10 ? 'danger' : 'success',
+        isCustomerRequested: true
+      };
+
+      setProducts((prev) => [...prev, newLine]);
+      setFeedbackToast({
+        type: 'success',
+        text: `Accepted request ${req.id}! ${req.quantity}x ${req.productName} added to quotation lines.`
+      });
+      fetchCustomerRequests();
+      setTimeout(() => setFeedbackToast(null), 6000);
+    } catch (err) {
+      setFeedbackToast({
+        type: 'danger',
+        text: err.message || 'Failed to accept request'
+      });
+    }
+  };
+
+  const handleRejectCustomerRequest = async () => {
+    if (!rejectModalReq) return;
+    try {
+      await productAPI.rejectCustomerRequest(rejectModalReq.id, {
+        salesRepName: user?.name || 'Alex Rivera',
+        reason: rejectReason || 'Product currently unavailable for this quotation package.'
+      });
+
+      setFeedbackToast({
+        type: 'info',
+        text: `Rejected customer request ${rejectModalReq.id}.`
+      });
+      setRejectModalReq(null);
+      setRejectReason('');
+      fetchCustomerRequests();
+      setTimeout(() => setFeedbackToast(null), 5000);
+    } catch (err) {
+      setFeedbackToast({
+        type: 'danger',
+        text: err.message || 'Failed to reject request'
+      });
+    }
+  };
+
   const upsellItems = [
     {
       id: 'up-1',
@@ -61,8 +152,8 @@ const QuotationDetailPage = () => {
     },
     {
       id: 'up-2',
-      name: 'Premium Cloud Backup 1TB',
-      price: 60,
+      name: 'Enterprise Cloud Storage Pro (5TB)',
+      price: 85,
       margin: 85,
       badge: 'POPULAR'
     },
@@ -100,6 +191,8 @@ const QuotationDetailPage = () => {
   const total = subtotal - totalDiscount + tax;
   const hasRisk = products.some((p) => p.discount > p.limit);
 
+  const pendingRequests = customerRequests.filter((r) => r.status === 'PENDING');
+
   return (
     <MainLayout>
       {/* Header */}
@@ -116,9 +209,14 @@ const QuotationDetailPage = () => {
               <h1 className="text-xl font-extrabold text-slate-900">
                 Quotation Detail: <span className="text-[#a459a8]">{id || 'Q-1042'}</span>
               </h1>
-              <Badge variant="warning" dot>Draft</Badge>
+              <Badge variant="warning" dot>Draft (Negotiation Active)</Badge>
+              {pendingRequests.length > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 text-[10px] font-extrabold flex items-center gap-1 animate-pulse">
+                  <ShoppingBag className="w-3 h-3 text-[#a459a8]" /> {pendingRequests.length} Customer Product Request(s)
+                </span>
+              )}
             </div>
-            <p className="text-xs text-slate-500">Customer: Acme Corp &bull; Created by John Doe</p>
+            <p className="text-xs text-slate-500">Customer: Acme Corp &bull; Assigned Rep: {user?.name || 'Alex Rivera'}</p>
           </div>
         </div>
 
@@ -127,9 +225,9 @@ const QuotationDetailPage = () => {
             variant="outline"
             size="sm"
             icon={ExternalLink}
-            onClick={() => navigate('/customer-portal/demo-token-q1042')}
+            onClick={() => navigate('/customer-portal/demo-token-123')}
           >
-            Preview Portal
+            View Customer Portal
           </Button>
           <Button variant="secondary" size="sm" icon={Save}>
             Save Draft
@@ -145,6 +243,105 @@ const QuotationDetailPage = () => {
         </div>
       </div>
 
+      {feedbackToast && (
+        <div className={`p-3.5 rounded-xl border text-xs font-semibold flex items-center justify-between shadow-sm ${
+          feedbackToast.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-blue-50 border-blue-200 text-blue-900'
+        }`}>
+          <span>{feedbackToast.text}</span>
+          <button onClick={() => setFeedbackToast(null)}><X className="w-4 h-4" /></button>
+        </div>
+      )}
+
+      {/* Reject Modal */}
+      {rejectModalReq && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4">
+            <h3 className="text-base font-bold text-slate-900">Reject Customer Product Request</h3>
+            <p className="text-xs text-slate-600">
+              You are rejecting <span className="font-bold text-slate-800">{rejectModalReq.quantity}x {rejectModalReq.productName}</span> requested by <span className="font-semibold">{rejectModalReq.customerName}</span>.
+            </p>
+            <div>
+              <label className="text-xs font-semibold text-slate-700">Rejection Reason / Customer Note:</label>
+              <textarea
+                rows={3}
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Product currently unavailable or incompatible with selected deployment plan..."
+                className="w-full mt-1 p-2.5 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-[#a459a8]/30 focus:outline-none"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button size="sm" variant="outline" onClick={() => setRejectModalReq(null)}>
+                Cancel
+              </Button>
+              <Button size="sm" variant="danger" onClick={handleRejectCustomerRequest}>
+                Confirm Rejection
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Customer Product Requests Review Panel */}
+      {customerRequests.length > 0 && (
+        <Card
+          title="Customer Product Requests"
+          subtitle="Products selected and requested by customer through their secure portal"
+        >
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200 text-xs">
+              <thead>
+                <tr className="bg-slate-50 text-slate-600 font-semibold uppercase">
+                  <th className="px-3 py-2.5 text-left">Req ID</th>
+                  <th className="px-3 py-2.5 text-left">Customer</th>
+                  <th className="px-3 py-2.5 text-left">Product Requested</th>
+                  <th className="px-3 py-2.5 text-center">Qty</th>
+                  <th className="px-3 py-2.5 text-left">Customer Note</th>
+                  <th className="px-3 py-2.5 text-center">Status</th>
+                  <th className="px-3 py-2.5 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {customerRequests.map((req) => (
+                  <tr key={req.id} className={req.status === 'PENDING' ? 'bg-purple-50/40 font-medium' : 'hover:bg-slate-50/50'}>
+                    <td className="px-3 py-3 font-mono font-bold text-[#a459a8]">{req.id}</td>
+                    <td className="px-3 py-3 font-semibold text-slate-800">{req.customerName}</td>
+                    <td className="px-3 py-3 font-bold text-slate-900">{req.productName}</td>
+                    <td className="px-3 py-3 text-center font-mono font-bold">{req.quantity}</td>
+                    <td className="px-3 py-3 text-slate-600 max-w-xs truncate" title={req.message}>{req.message}</td>
+                    <td className="px-3 py-3 text-center">
+                      <Badge variant={req.status === 'ACCEPTED' ? 'success' : req.status === 'REJECTED' ? 'danger' : 'warning'} dot>
+                        {req.status}
+                      </Badge>
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      {req.status === 'PENDING' ? (
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => handleAcceptCustomerRequest(req)}
+                            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[11px] shadow-sm flex items-center gap-1 transition-all"
+                          >
+                            <Check className="w-3 h-3" /> Accept
+                          </button>
+                          <button
+                            onClick={() => setRejectModalReq(req)}
+                            className="px-2 py-1 bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 rounded-lg font-bold text-[11px] border border-slate-200 transition-all"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-slate-400 italic">Reviewed by {req.reviewedBy || 'Sales'}</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
       {/* Customer Info Card */}
       <Card>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
@@ -157,18 +354,20 @@ const QuotationDetailPage = () => {
           </div>
           <div>
             <span className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Contact Person</span>
-            <p className="text-sm font-semibold text-slate-800 mt-1">R. Sharma (Procurement Head)</p>
-            <p className="text-slate-500 text-[11px]">rsharma@acmecorp.com</p>
+            <p className="text-sm font-semibold text-slate-800 mt-1">Alex Buyer (Procurement)</p>
+            <p className="text-slate-500 text-[11px]">buyer@acmecorp.com</p>
           </div>
           <div>
-            <span className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Phone & Location</span>
-            <p className="text-sm font-semibold text-slate-800 mt-1">+91 98200 12345</p>
-            <p className="text-slate-500 text-[11px]">Mumbai, MH (HQ)</p>
+            <span className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Portal Link</span>
+            <p className="text-sm font-semibold text-slate-800 mt-1">Token Active</p>
+            <a href="/customer-portal/demo-token-123" target="_blank" rel="noreferrer" className="text-[#a459a8] font-bold text-[11px] hover:underline flex items-center gap-1">
+              /customer-portal/demo-token-123 <ExternalLink className="w-3 h-3" />
+            </a>
           </div>
           <div>
             <span className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Assigned Sales Rep</span>
-            <p className="text-sm font-semibold text-slate-800 mt-1">John Doe</p>
-            <p className="text-slate-500 text-[11px]">Sales Rep (West Region)</p>
+            <p className="text-sm font-semibold text-slate-800 mt-1">{user?.name || 'Alex Rivera'}</p>
+            <p className="text-slate-500 text-[11px]">Enterprise Sales</p>
           </div>
         </div>
       </Card>
@@ -206,9 +405,14 @@ const QuotationDetailPage = () => {
                       <tr key={p.id} className={isOver ? 'bg-red-50/40' : 'hover:bg-slate-50/50'}>
                         <td className="px-3 py-3 font-semibold text-slate-800">
                           {p.name}
+                          {p.isCustomerRequested && (
+                            <span className="ml-2 px-1.5 py-0.2 bg-purple-100 text-[#a459a8] rounded text-[9px] font-bold">
+                              From Customer Request
+                            </span>
+                          )}
                         </td>
                         <td className="px-3 py-3 text-center font-mono font-medium">{p.qty}</td>
-                        <td className="px-3 py-3 text-right font-mono font-medium">₹{p.price}</td>
+                        <td className="px-3 py-3 text-right font-mono font-medium">${p.price}</td>
                         <td className="px-3 py-3 text-center">
                           <span className={`font-mono font-bold ${isOver ? 'text-red-600' : 'text-slate-700'}`}>
                             {p.discount}%
@@ -245,7 +449,7 @@ const QuotationDetailPage = () => {
               <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2 text-xs text-red-700">
                 <AlertTriangle className="w-4 h-4 flex-shrink-0 text-red-600 mt-0.5" />
                 <div>
-                  <span className="font-bold">Approval Requirement Triggered:</span> Onsite Setup Service exceeds the standard 10% representative discount limit. Requires Sales Manager sign-off.
+                  <span className="font-bold">Approval Requirement Triggered:</span> Line item discount exceeds standard 10% limit. Requires Sales Manager sign-off.
                 </div>
               </div>
             )}
@@ -269,7 +473,7 @@ const QuotationDetailPage = () => {
                       <Badge variant="primary" className="text-[9px] py-0">{item.badge}</Badge>
                       <h4 className="text-xs font-bold text-slate-800 mt-1">{item.name}</h4>
                     </div>
-                    <span className="text-xs font-bold text-slate-900">₹{item.price}</span>
+                    <span className="text-xs font-bold text-slate-900">${item.price}</span>
                   </div>
                   <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-200/60 text-[11px]">
                     <span className="text-emerald-600 font-semibold">+{item.margin}% margin uplift</span>
@@ -278,7 +482,7 @@ const QuotationDetailPage = () => {
                       variant="primary"
                       icon={Plus}
                       onClick={() => handleAddUpsell(item)}
-                      className="py-1 px-2 text-[11px]"
+                      className="py-1 px-2 text-[11px] bg-[#a459a8]"
                     >
                       Add
                     </Button>
@@ -297,19 +501,19 @@ const QuotationDetailPage = () => {
           <div className="space-y-2 text-xs">
             <div className="flex justify-between py-1 border-b border-slate-100">
               <span className="text-slate-500">Gross Subtotal:</span>
-              <span className="font-semibold text-slate-800">₹{subtotal.toFixed(2)}</span>
+              <span className="font-semibold text-slate-800">${subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-slate-100 text-emerald-600 font-medium">
               <span>Total Discount Applied:</span>
-              <span>-₹{totalDiscount.toFixed(2)}</span>
+              <span>-${totalDiscount.toFixed(2)}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-slate-100">
-              <span className="text-slate-500">GST (18%):</span>
-              <span className="font-semibold text-slate-800">₹{tax.toFixed(2)}</span>
+              <span className="text-slate-500">GST / Tax (18%):</span>
+              <span className="font-semibold text-slate-800">${tax.toFixed(2)}</span>
             </div>
             <div className="flex justify-between py-2 text-sm font-extrabold text-slate-900">
               <span>Net Payable Total:</span>
-              <span className="text-base text-[#a459a8]">₹{total.toFixed(2)}</span>
+              <span className="text-base text-[#a459a8]">${total.toFixed(2)}</span>
             </div>
           </div>
 
@@ -329,15 +533,15 @@ const QuotationDetailPage = () => {
           <div className="p-4 bg-purple-50/50 border border-purple-200 rounded-xl flex flex-col justify-between">
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#a459a8]">Approval Governance</span>
-              <p className="text-xs font-semibold text-slate-800 mt-1">Status: Pending Manager Sign-off</p>
-              <p className="text-[11px] text-slate-500 mt-0.5">Line 2 exceeds rep limit. Multi-tier approval route assigned.</p>
+              <p className="text-xs font-semibold text-slate-800 mt-1">Status: Open Negotiation</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">Customer product additions automatically synced to proposal.</p>
             </div>
             <Button
               variant="primary"
               size="sm"
               icon={Send}
               onClick={() => navigate('/approvals/Q-1042')}
-              className="mt-3 w-full"
+              className="mt-3 w-full bg-[#a459a8]"
             >
               Proceed to Approval Review
             </Button>

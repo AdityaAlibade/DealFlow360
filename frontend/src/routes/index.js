@@ -1,6 +1,10 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 
+// Auth Guard
+import ProtectedRoute from '../components/auth/ProtectedRoute';
+import { PERMISSIONS } from '../utils/permissions';
+
 // Auth Pages
 import LoginPage from '../pages/LoginPage';
 import SignupPage from '../pages/SignupPage';
@@ -44,45 +48,150 @@ import ProductDetailPage from '../pages/ProductDetailPage';
 const AppRoutes = () => {
   return (
     <Routes>
-      {/* 1. Authentication */}
+      {/* 1. Public Authentication Routes */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
 
-      {/* 2. Dashboard */}
-      <Route path="/dashboard" element={<DashboardPage />} />
-
-      {/* 3. Quotations */}
-      <Route path="/quotations" element={<QuotationPage />} />
-      <Route path="/quotations/:id" element={<QuotationDetailPage />} />
-
-      {/* 4. Approvals */}
-      <Route path="/approvals" element={<ApprovalPage />} />
-      <Route path="/approvals/:id" element={<ApprovalDetailPage />} />
-
-      {/* 5. Fulfillment */}
-      <Route path="/fulfillment" element={<FulfillmentPage />} />
-      <Route path="/fulfillment/:id" element={<FulfillmentDetailPage />} />
-
-      {/* 6. Subscriptions */}
-      <Route path="/subscriptions" element={<SubscriptionPage />} />
-      <Route path="/subscriptions/:id" element={<SubscriptionDetailPage />} />
-
-      {/* 7. Invoices */}
-      <Route path="/invoices" element={<InvoicePage />} />
-      <Route path="/invoices/:id" element={<InvoiceDetailPage />} />
-
-      {/* 8. Customer Portal (Standalone Layout) */}
+      {/* 2. Customer Portal (Isolated Layout & Token Security) */}
       <Route path="/customer-portal/:token" element={<CustomerPortalPage />} />
 
+      {/* 3. Dashboard (Internal Authenticated Users) */}
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* 4. Quotations */}
+      <Route
+        path="/quotations"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.QUOTATION_READ}>
+            <QuotationPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/quotations/:id"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.QUOTATION_READ}>
+            <QuotationDetailPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* 5. Approvals */}
+      <Route
+        path="/approvals"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.APPROVAL_READ}>
+            <ApprovalPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/approvals/:id"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.APPROVAL_READ}>
+            <ApprovalDetailPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* 6. Fulfillment */}
+      <Route
+        path="/fulfillment"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.FULFILLMENT_READ}>
+            <FulfillmentPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/fulfillment/:id"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.FULFILLMENT_READ}>
+            <FulfillmentDetailPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* 7. Subscriptions */}
+      <Route
+        path="/subscriptions"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.BILLING_READ}>
+            <SubscriptionPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/subscriptions/:id"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.BILLING_READ}>
+            <SubscriptionDetailPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* 8. Invoices */}
+      <Route
+        path="/invoices"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.INVOICE_READ}>
+            <InvoicePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/invoices/:id"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.INVOICE_READ}>
+            <InvoiceDetailPage />
+          </ProtectedRoute>
+        }
+      />
+
       {/* 9. Deal Health */}
-      <Route path="/deal-health" element={<DealHealthPage />} />
+      <Route
+        path="/deal-health"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.DEAL_HEALTH_READ}>
+            <DealHealthPage />
+          </ProtectedRoute>
+        }
+      />
 
       {/* 10. Reports */}
-      <Route path="/reports" element={<ReportsPage />} />
+      <Route
+        path="/reports"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.REPORT_READ}>
+            <ReportsPage />
+          </ProtectedRoute>
+        }
+      />
 
-      {/* 11. Products */}
-      <Route path="/products" element={<ProductPage />} />
-      <Route path="/products/:id" element={<ProductDetailPage />} />
+      {/* 11. Products & Configuration */}
+      <Route
+        path="/products"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.PRODUCT_READ}>
+            <ProductPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/products/:id"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.PRODUCT_READ}>
+            <ProductDetailPage />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Root Redirection */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />

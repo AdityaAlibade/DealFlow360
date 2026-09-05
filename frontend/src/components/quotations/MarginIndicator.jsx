@@ -1,22 +1,27 @@
 import React from 'react';
 import Card from '../common/Card';
 
-const MarginIndicator = ({ margin = 30 }) => {
-  // TODO: Compute threshold alerts if margin drops below corporate guidelines
+const MarginIndicator = ({ margin = 34.2, target = 25 }) => {
+  const isHealthy = margin >= target;
+
   return (
-    <Card title="Deal Margin Analysis">
+    <Card title="Deal Margin Realization">
       <div className="space-y-3">
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-slate-600">Calculated Margin:</span>
-          <span className="text-lg font-bold text-emerald-600">{margin}%</span>
+        <div className="flex justify-between items-center text-xs">
+          <span className="font-semibold text-slate-700">Calculated Gross Margin:</span>
+          <span className={`font-bold text-sm ${isHealthy ? 'text-emerald-600' : 'text-red-600'}`}>
+            {margin}%
+          </span>
         </div>
-        <div className="w-full bg-slate-200 rounded-full h-2.5">
+        <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
           <div
-            className="bg-emerald-500 h-2.5 rounded-full"
-            style={{ width: margin + '%' }}
+            className={`h-full rounded-full ${isHealthy ? 'bg-emerald-500' : 'bg-red-500'}`}
+            style={{ width: `${Math.min(margin * 2, 100)}%` }}
           />
         </div>
-        <p className="text-xs text-slate-500">Target deal margin: &gt; 25%</p>
+        <p className="text-[11px] text-slate-500">
+          Target corporate threshold: &gt; {target}%. {isHealthy ? 'Deal is within policy limits.' : 'Concessions exceed margin baseline.'}
+        </p>
       </div>
     </Card>
   );

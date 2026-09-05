@@ -1,17 +1,24 @@
 import React from 'react';
+import { AlertTriangle } from 'lucide-react';
 import Card from '../common/Card';
 import Button from '../common/Button';
 
 const BackorderHandler = () => {
-  // TODO: Trigger automated supplier PO for backordered items
   return (
-    <Card title="Backorder Handling">
-      <div className="flex items-center justify-between">
-        <div>
-          <h5 className="text-sm font-medium text-slate-800">8 Units Currently Short</h5>
-          <p className="text-xs text-slate-500">Auto-create purchase requisition for missing stock</p>
+    <Card className="bg-amber-50/60 border-amber-200">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <h4 className="text-sm font-bold text-amber-900">Backorder Consolidation Opportunity</h4>
+            <p className="text-xs text-amber-700 mt-1">
+              4 accessory units are scheduled for factory arrival tomorrow. You can consolidate the remaining backorder into a single shipment.
+            </p>
+          </div>
         </div>
-        <Button variant="primary" size="sm">Generate Supplier PO</Button>
+        <Button size="sm" variant="secondary" className="whitespace-nowrap bg-white text-amber-800 border-amber-300">
+          Consolidate Remaining Backorder
+        </Button>
       </div>
     </Card>
   );

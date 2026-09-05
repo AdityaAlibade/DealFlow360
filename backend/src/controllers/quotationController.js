@@ -5,30 +5,44 @@ const warehouseAllocationService = require('../services/warehouseAllocationServi
 
 const quotationController = {
   /**
+   * GET /api/quotations/customers
+   */
+  getCustomers: async (req, res, next) => {
+    try {
+      const customers = await prisma.customer.findMany({
+        orderBy: { name: 'asc' }
+      });
+      res.status(200).json({ success: true, count: customers.length, data: customers });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
    * GET /api/quotations
    */
   getAll: async (req, res, next) => {
     try {
-      const { status, customerId, salesRepId } = req.query;
+      const { customerId, status, salesRepId } = req.query;
       const where = {};
-      if (status) where.status = status;
       if (customerId) where.customerId = customerId;
+      if (status) where.status = status;
       if (salesRepId) where.salesRepId = salesRepId;
 
-      const quotes = await prisma.quotation.findMany({
+      const quotations = await prisma.quotation.findMany({
         where,
         include: {
           customer: true,
-          salesRep: { select: { id: true, fullName: true, email: true, role: true } },
+          salesRep: { select: { id: true, fullName: true, email: true } },
+          productRequest: { select: { id: true, requestNumber: true, status: true, totalAmount: true } },
           items: { include: { product: true } },
           approvals: true,
-          negotiations: true,
           orders: true
         },
         orderBy: { createdAt: 'desc' }
       });
 
-      res.status(200).json({ success: true, count: quotes.length, data: quotes });
+      res.status(200).json({ success: true, count: quotations.length, data: quotations });
     } catch (error) {
       next(error);
     }
@@ -41,12 +55,15 @@ const quotationController = {
     try {
       const { id } = req.params;
       const quote = await prisma.quotation.findFirst({
-        where: {
-          OR: [{ id }, { quoteNumber: id }, { portalToken: id }]
-        },
+        where: { OR: [{ id }, { quoteNumber: id }, { portalToken: id }] },
         include: {
           customer: true,
           salesRep: { select: { id: true, fullName: true, email: true, role: true } },
+          productRequest: {
+            include: {
+              items: { include: { product: true } }
+            }
+          },
           items: { include: { product: true } },
           approvals: {
             include: { approver: { select: { id: true, fullName: true, role: true } } },
@@ -76,7 +93,7 @@ const quotationController = {
    */
   create: async (req, res, next) => {
     try {
-      const { customerId, salesRepId, items = [], expiresAt, portalToken } = req.body;
+      const { customerId, salesRepId, productRequestId, items = [], expiresAt, portalToken } = req.body;
 
       if (!customerId) {
         return res.status(400).json({ success: false, message: 'Customer ID is required.' });
@@ -85,6 +102,22 @@ const quotationController = {
       const customer = await prisma.customer.findUnique({ where: { id: customerId } });
       if (!customer) {
         return res.status(400).json({ success: false, message: 'Customer not found.' });
+      }
+
+      // Check duplicate quotation for the same Order Request
+      if (productRequestId) {
+        const existingQuote = await prisma.quotation.findFirst({
+          where: { productRequestId, status: { not: 'CANCELLED' } },
+          include: { customer: true, items: { include: { product: true } } }
+        });
+        if (existingQuote) {
+          return res.status(200).json({
+            success: true,
+            message: `Active Quotation ${existingQuote.quoteNumber} already exists for this Order Request.`,
+            data: existingQuote,
+            alreadyExists: true
+          });
+        }
       }
 
       // Resolve sales rep from body or auth user
@@ -111,9 +144,9 @@ const quotationController = {
           return res.status(400).json({ success: false, message: `Product ${item.productId} not found.` });
         }
 
-        const quantity = Number(item.quantity || 1);
-        const unitPrice = item.unitPrice !== undefined ? Number(item.unitPrice) : product.basePrice;
-        const discountPercent = Number(item.discountPercent || 0);
+        const quantity = Number(item.quantity !== undefined ? item.quantity : item.qty !== undefined ? item.qty : 1);
+        const unitPrice = item.unitPrice !== undefined ? Number(item.unitPrice) : item.price !== undefined ? Number(item.price) : product.basePrice;
+        const discountPercent = Number(item.discountPercent !== undefined ? item.discountPercent : item.discount !== undefined ? item.discount : 0);
         const netPrice = unitPrice * (1 - discountPercent / 100);
         const lineSubtotal = quantity * unitPrice;
         const lineDiscount = lineSubtotal * (discountPercent / 100);
@@ -148,6 +181,7 @@ const quotationController = {
           quoteNumber,
           customerId,
           salesRepId: repId,
+          productRequestId: productRequestId || null,
           status: 'DRAFT',
           subtotal,
           totalDiscount,
@@ -162,9 +196,17 @@ const quotationController = {
         },
         include: {
           customer: true,
+          productRequest: true,
           items: { include: { product: true } }
         }
       });
+
+      if (productRequestId) {
+        await prisma.productRequest.update({
+          where: { id: productRequestId },
+          data: { status: 'QUOTATION_CREATED' }
+        });
+      }
 
       // Audit Log
       await prisma.auditLog.create({
@@ -174,7 +216,7 @@ const quotationController = {
           action: 'CREATE_QUOTATION',
           resource: 'QUOTATION',
           resourceId: quotation.id,
-          newValue: { quoteNumber, totalAmount, blendedMargin },
+          newValue: { quoteNumber, totalAmount, blendedMargin, productRequestId },
           reason: `Created draft quotation ${quoteNumber}`
         }
       });
@@ -199,6 +241,21 @@ const quotationController = {
 
       if (!request) {
         return res.status(404).json({ success: false, message: 'Product request not found.' });
+      }
+
+      // Check if active quotation already exists
+      const existingQuote = await prisma.quotation.findFirst({
+        where: { productRequestId: request.id, status: { not: 'CANCELLED' } },
+        include: { customer: true, items: { include: { product: true } } }
+      });
+
+      if (existingQuote) {
+        return res.status(200).json({
+          success: true,
+          message: `Active Quotation ${existingQuote.quoteNumber} already exists for this Order Request.`,
+          data: existingQuote,
+          alreadyExists: true
+        });
       }
 
       // Convert items
@@ -250,7 +307,8 @@ const quotationController = {
         data: {
           quoteNumber,
           customerId: request.customerId,
-          salesRepId: defaultRep?.id || 'usr-rep-03',
+          salesRepId: defaultRep?.id || req.user?.id || 'usr-rep-03',
+          productRequestId: request.id,
           status: 'DRAFT',
           subtotal,
           totalDiscount: 0,
@@ -265,14 +323,15 @@ const quotationController = {
         },
         include: {
           customer: true,
+          productRequest: true,
           items: { include: { product: true } }
         }
       });
 
-      // Update ProductRequest status to QUOTED
+      // Update ProductRequest status to QUOTATION_CREATED
       await prisma.productRequest.update({
         where: { id: request.id },
-        data: { status: 'QUOTED' }
+        data: { status: 'QUOTATION_CREATED' }
       });
 
       // Audit Log

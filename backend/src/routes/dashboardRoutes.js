@@ -11,5 +11,6 @@ router.get('/metrics', verifyToken, dashboardController.getMetrics);
 router.get('/pipeline', verifyToken, dashboardController.getPipelineSummary);
 router.get('/activity', verifyToken, dashboardController.getRecentActivity);
 router.get('/health-summary', verifyToken, dashboardController.getDealHealthSummary);
+router.get('/health', verifyToken, dashboardController.getDealHealthSummary);
 
 module.exports = router;

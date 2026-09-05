@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
@@ -6,20 +6,44 @@ import Card from '../components/common/Card';
 import Badge from '../components/common/Badge';
 import Button from '../components/common/Button';
 import Table from '../components/common/Table';
+import subscriptionAPI from '../api/subscriptionAPI';
 
 const SubscriptionPage = () => {
   const navigate = useNavigate();
+  const [subscriptions, setSubscriptions] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const [subscriptions] = React.useState(() => {
+  const fetchSubscriptions = async () => {
     try {
-      return JSON.parse(localStorage.getItem('dealflow360_subscriptions') || '[]');
-    } catch {
-      return [];
+      setLoading(true);
+      const res = await subscriptionAPI.getAll();
+      const list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      setSubscriptions(list);
+    } catch (err) {
+      console.warn('Failed to load subscriptions from API:', err);
+      setSubscriptions([]);
+    } finally {
+      setLoading(false);
     }
-  });
+  };
 
-  const activeCount = subscriptions.filter((s) => s.status === 'Active').length;
-  const pausedCount = subscriptions.filter((s) => s.status === 'Paused').length;
+  useEffect(() => {
+    fetchSubscriptions();
+  }, []);
+
+  const activeCount = subscriptions.filter((s) => (s.status || '').toUpperCase() === 'ACTIVE').length;
+  const pausedCount = subscriptions.filter((s) => (s.status || '').toUpperCase() === 'PAUSED').length;
+
+  const formattedRows = subscriptions.map((s) => ({
+    id: s.id,
+    customer: s.customer?.companyName || s.customer?.name || 'Customer Account',
+    plan: s.planName || s.plan || 'SaaS Enterprise Tier',
+    cycle: s.billingCycle || s.cycle || 'Monthly',
+    amount: `₹${Number(s.recurringAmount || s.price || 0).toLocaleString('en-IN')}`,
+    nextBill: s.nextBillingDate ? new Date(s.nextBillingDate).toLocaleDateString('en-IN') : 'Auto-scheduled',
+    status: s.status || 'Active',
+    statusVariant: (s.status || '').toUpperCase() === 'ACTIVE' ? 'success' : (s.status || '').toUpperCase() === 'PAUSED' ? 'warning' : 'default'
+  }));
 
   const columns = [
     { header: 'Customer', accessor: 'customer', render: (r) => <span className="font-semibold text-slate-800">{r.customer}</span> },
@@ -30,7 +54,7 @@ const SubscriptionPage = () => {
     {
       header: 'Status',
       accessor: 'status',
-      render: (r) => <Badge variant={r.statusVariant || 'default'} dot>{r.status}</Badge>
+      render: (r) => <Badge variant={r.statusVariant} dot>{r.status}</Badge>
     }
   ];
 
@@ -61,8 +85,8 @@ const SubscriptionPage = () => {
       <Card title="Active Subscription Contracts">
         <Table
           columns={columns}
-          data={subscriptions}
-          emptyMessage="No active subscription contracts found. Click '+ New Plan (Admin)' to configure plans."
+          data={formattedRows}
+          emptyMessage={loading ? 'Loading subscriptions from database...' : 'No active subscription contracts found. Click "+ New Plan (Admin)" to configure plans.'}
           onRowClick={(row) => navigate(`/subscriptions/${row.id}`)}
         />
       </Card>

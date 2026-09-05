@@ -3,6 +3,7 @@ const router = express.Router();
 const quotationController = require('../controllers/quotationController');
 const { verifyToken } = require('../middleware/auth');
 
+router.get('/customers', verifyToken, quotationController.getCustomers);
 router.get('/', verifyToken, quotationController.getAll);
 router.post('/', verifyToken, quotationController.create);
 router.post('/convert-request/:requestId', verifyToken, quotationController.convertFromRequest);

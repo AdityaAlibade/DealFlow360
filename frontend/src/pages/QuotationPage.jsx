@@ -1,42 +1,66 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Filter, ArrowUpRight, ShoppingBag, ArrowRight } from 'lucide-react';
+import { Search, Plus, Filter, ArrowUpRight, ShoppingBag, ArrowRight, RefreshCw, FileText } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
 import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
 import Pagination from '../components/common/Pagination';
 import productAPI from '../api/productAPI';
+import quotationAPI from '../api/quotationAPI';
 
 const QuotationPage = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
-  const [tierFilter, setTierFilter] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
   const [customerRequests, setCustomerRequests] = useState([]);
+  const [quotations, setQuotations] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchQuotationsAndRequests = async () => {
+    try {
+      setLoading(true);
+      const [qRes, rRes] = await Promise.all([
+        quotationAPI.getAll({
+          status: statusFilter !== 'All' ? statusFilter.toUpperCase().replace(' ', '_') : undefined
+        }),
+        productAPI.getAllCustomerRequests()
+      ]);
+
+      if (qRes && (qRes.data || Array.isArray(qRes))) {
+        setQuotations(Array.isArray(qRes.data) ? qRes.data : Array.isArray(qRes) ? qRes : []);
+      }
+      if (rRes && rRes.data) {
+        setCustomerRequests(rRes.data);
+      }
+    } catch (err) {
+      console.warn('Failed to load live quotations:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchRequests = async () => {
-      try {
-        const res = await productAPI.getAllCustomerRequests();
-        if (res && res.data) setCustomerRequests(res.data);
-      } catch (err) {
-        console.warn('Failed to load customer requests', err);
-      }
-    };
-    fetchRequests();
-  }, []);
+    fetchQuotationsAndRequests();
+  }, [statusFilter]);
 
   const pendingRequests = customerRequests.filter((r) => r.status === 'PENDING');
 
-  const [quotations] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('dealflow360_quotations') || '[]');
-    } catch {
-      return [];
-    }
+  const filteredQuotations = quotations.filter((q) => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    const num = (q.quoteNumber || q.id || '').toLowerCase();
+    const cust = (q.customer?.name || q.customerName || '').toLowerCase();
+    return num.includes(term) || cust.includes(term);
   });
 
+  const getStatusVariant = (status) => {
+    const s = String(status || '').toUpperCase();
+    if (s.includes('APPROV') || s.includes('CONFIRM')) return 'success';
+    if (s.includes('PEND')) return 'warning';
+    if (s.includes('CANCEL') || s.includes('REJECT')) return 'danger';
+    return 'default';
+  };
 
   return (
     <MainLayout>
@@ -46,13 +70,18 @@ const QuotationPage = () => {
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Quotations</h1>
           <p className="text-xs text-slate-500 mt-1">Configure pricing, discount compliance, and customer negotiations</p>
         </div>
-        <Button
-          variant="primary"
-          icon={Plus}
-          onClick={() => navigate('/quotations/new')}
-        >
-          New Quotation
-        </Button>
+        <div className="flex items-center gap-2.5">
+          <Button variant="secondary" size="sm" icon={RefreshCw} onClick={fetchQuotationsAndRequests} disabled={loading}>
+            Refresh
+          </Button>
+          <Button
+            variant="primary"
+            icon={Plus}
+            onClick={() => navigate('/order-requests')}
+          >
+            New Quotation
+          </Button>
+        </div>
       </div>
 
       {/* Customer Product Requests Alert Banner */}
@@ -76,9 +105,9 @@ const QuotationPage = () => {
             size="sm"
             variant="primary"
             className="bg-[#a459a8] text-xs font-bold"
-            onClick={() => navigate('/quotations/Q-1042')}
+            onClick={() => navigate('/order-requests')}
           >
-            Review in Quote Builder <ArrowRight className="w-3.5 h-3.5 ml-1" />
+            Review Inbound Requests <ArrowRight className="w-3.5 h-3.5 ml-1" />
           </Button>
         </div>
       )}
@@ -107,51 +136,39 @@ const QuotationPage = () => {
           <option value="Draft">Draft</option>
           <option value="Pending Approval">Pending Approval</option>
           <option value="Approved">Approved</option>
-          <option value="Negotiation">Negotiation</option>
           <option value="Confirmed">Confirmed</option>
         </select>
-
-        {/* Customer Tier Dropdown */}
-        <select
-          value={tierFilter}
-          onChange={(e) => setTierFilter(e.target.value)}
-          className="px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#a459a8]/30 text-slate-700"
-        >
-          <option value="All">Tier: All</option>
-          <option value="Gold">Gold Tier</option>
-          <option value="Silver">Silver Tier</option>
-          <option value="Bronze">Bronze Tier</option>
-        </select>
-
-        <Button variant="secondary" size="sm" icon={Filter}>
-          More Filters
-        </Button>
       </div>
 
       {/* Quotation Cards Grid */}
-      {quotations.length === 0 ? (
+      {loading ? (
+        <div className="py-20 text-center">
+          <RefreshCw className="w-6 h-6 text-[#a459a8] animate-spin mx-auto mb-2" />
+          <p className="text-xs text-slate-500">Loading quotations from database...</p>
+        </div>
+      ) : filteredQuotations.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-4 shadow-sm">
           <div className="w-14 h-14 bg-purple-50 text-[#a459a8] rounded-2xl flex items-center justify-center mx-auto border border-purple-100 shadow-sm">
-            <Plus className="w-7 h-7" />
+            <FileText className="w-7 h-7" />
           </div>
           <div>
             <h3 className="text-base font-bold text-slate-900">No Quotations Found</h3>
             <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-              Get started by creating your first CPQ quotation with multi-tier customer discounts and margin protections.
+              Select an inbound customer Order Request to generate a compliant CPQ quotation.
             </p>
           </div>
           <Button
             variant="primary"
             icon={Plus}
-            onClick={() => navigate('/quotations/new')}
+            onClick={() => navigate('/order-requests')}
           >
-            Create Quotation
+            Create Quotation from Request
           </Button>
         </div>
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {quotations.map((quote) => (
+            {filteredQuotations.map((quote) => (
               <div
                 key={quote.id}
                 onClick={() => navigate(`/quotations/${quote.id}`)}
@@ -161,24 +178,24 @@ const QuotationPage = () => {
                   <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-sm font-bold text-[#a459a8] group-hover:underline">
-                        {quote.id}
+                        {quote.quoteNumber || quote.id}
                       </span>
-                      <Badge variant={(quote.tier || 'standard').toLowerCase()}>{quote.tier}</Badge>
+                      <Badge variant="gold">{quote.customer?.tier || 'GOLD'} Tier</Badge>
                     </div>
-                    <Badge variant={quote.statusVariant || 'default'} dot>{quote.status}</Badge>
+                    <Badge variant={getStatusVariant(quote.status)} dot>{quote.status}</Badge>
                   </div>
 
                   <div className="py-4">
                     <h3 className="text-base font-bold text-slate-900 group-hover:text-[#a459a8] transition-colors">
-                      {quote.customer}
+                      {quote.customer?.name || quote.customerName || 'Direct Account'}
                     </h3>
                     <p className="text-xs text-slate-500 mt-1">
-                      Sales Rep: <span className="font-medium text-slate-700">{quote.salesRep}</span> &bull; {quote.itemsCount} Line Items
+                      Sales Rep: <span className="font-medium text-slate-700">{quote.salesRep?.fullName || 'Sales Representative'}</span> &bull; {quote.items?.length || 1} Line Items
                     </p>
-                    {quote.pendingCustomerRequests > 0 && (
+                    {quote.productRequest && (
                       <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-purple-100 text-purple-800 text-[10px] font-bold">
                         <ShoppingBag className="w-3 h-3 text-[#a459a8]" />
-                        {quote.pendingCustomerRequests} Pending Product Request
+                        From #{quote.productRequest.requestNumber}
                       </div>
                     )}
                   </div>
@@ -187,10 +204,10 @@ const QuotationPage = () => {
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
                   <div>
                     <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Total Amount</span>
-                    <p className="text-lg font-extrabold text-slate-900">{quote.amount}</p>
+                    <p className="text-lg font-extrabold text-slate-900">₹{Number(quote.totalAmount || quote.total || 0).toLocaleString('en-IN')}</p>
                   </div>
                   <div className="text-right">
-                    <span className="text-[11px] text-slate-400">{quote.date}</span>
+                    <span className="text-[11px] text-slate-400">{new Date(quote.createdAt || Date.now()).toLocaleDateString('en-IN')}</span>
                     <div className="flex items-center gap-1 text-xs text-[#a459a8] font-semibold mt-0.5 justify-end">
                       Open Builder <ArrowUpRight className="w-3.5 h-3.5" />
                     </div>

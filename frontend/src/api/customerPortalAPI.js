@@ -54,7 +54,7 @@ export const customerPortalAPI = {
   // Customer Product Catalog & Product Requests
   getProducts: async (token, params) => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/products`, { params });
+      const res = await axios.get(`${API_BASE_URL}/customer-portal/products`, { params });
       return res.data;
     } catch {
       return ProductRequestService.getCustomerCatalog(token, params);
@@ -63,7 +63,9 @@ export const customerPortalAPI = {
 
   createProductRequest: async (token, requestData) => {
     try {
-      const res = await axios.post(`${API_BASE_URL}/customer-portal/requests`, requestData);
+      const res = await axios.post(`${API_BASE_URL}/customer-portal/requests`, requestData, {
+        params: { token }
+      });
       return res.data;
     } catch {
       return ProductRequestService.createProductRequest(token, requestData);
@@ -72,7 +74,9 @@ export const customerPortalAPI = {
 
   getProductRequests: async (token) => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/customer-portal/requests`);
+      const res = await axios.get(`${API_BASE_URL}/customer-portal/requests`, {
+        params: { token }
+      });
       return res.data;
     } catch {
       return ProductRequestService.getCustomerRequests(token);

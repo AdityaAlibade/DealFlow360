@@ -5,6 +5,7 @@ const customerPortalController = require('../controllers/customerPortalControlle
 // Customer Requests ("My Requests" - Tests 2 & 6)
 router.post('/requests', customerPortalController.createRequest);
 router.get('/requests', customerPortalController.getRequests);
+router.get('/products', customerPortalController.getCatalog);
 
 // Customer Quotations & Negotiations (Tests 4, 5, 7, 8, 11)
 router.get('/quote/:token', customerPortalController.getQuoteByToken);

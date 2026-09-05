@@ -1,24 +1,30 @@
 import React from 'react';
 import Table from '../common/Table';
 
-const ProductTable = () => {
-  // TODO: Display searchable, filterable product catalog table
+const ProductTable = ({ data = [], onRowClick }) => {
   const columns = [
-    { header: 'SKU', accessor: 'sku' },
-    { header: 'Product Name', accessor: 'name' },
-    { header: 'Base Price', accessor: 'price' },
-    { header: 'Standard Cost', accessor: 'cost' },
-    { header: 'Target Margin', accessor: 'margin' }
+    { header: 'SKU', accessor: 'sku', render: (r) => <span className="font-mono text-xs text-slate-500">{r.sku}</span> },
+    { header: 'Product Name', accessor: 'name', render: (r) => <span className="font-semibold text-slate-800">{r.name}</span> },
+    { header: 'Base Price', accessor: 'basePrice', render: (r) => <span className="font-mono font-bold text-slate-900">₹{Number(r.basePrice || 0).toLocaleString('en-IN')}</span> },
+    { header: 'Standard Cost', accessor: 'standardCost', render: (r) => <span className="font-mono text-slate-600">₹{Number(r.standardCost || 0).toLocaleString('en-IN')}</span> },
+    {
+      header: 'Margin',
+      accessor: 'margin',
+      render: (r) => {
+        const margin = r.basePrice > 0 ? (((r.basePrice - (r.standardCost || 0)) / r.basePrice) * 100).toFixed(1) : '0.0';
+        return <span className="font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">{margin}%</span>;
+      }
+    }
   ];
 
-  const dummyData = [
-    { sku: 'SKU-HW-LPT-14', name: 'Enterprise Laptop Pro 14"', price: '₹1,50,000', cost: '₹1,10,000', margin: '26.7%' },
-    { sku: 'SKU-HW-MON-4K', name: 'UltraHD 4K Executive Monitor 32"', price: '₹45,000', cost: '₹32,000', margin: '28.9%' },
-    { sku: 'SKU-ACC-DCK-01', name: 'Thunderbolt 4 Docking Station Pro', price: '₹18,500', cost: '₹12,000', margin: '35.1%' },
-    { sku: 'SKU-SFT-CPQ-YR', name: 'DealFlow360 Enterprise CPQ Platform', price: '₹3,50,000', cost: '₹85,000', margin: '75.7%' }
-  ];
-
-  return <Table columns={columns} data={dummyData} />;
+  return (
+    <Table
+      columns={columns}
+      data={data}
+      emptyMessage="No catalog products found."
+      onRowClick={onRowClick}
+    />
+  );
 };
 
 export default ProductTable;

@@ -1,46 +1,62 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BarChart3, Download } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import Select from '../components/common/Select';
 import Table from '../components/common/Table';
+import reportsAPI from '../api/reportsAPI';
 
 const ReportsPage = () => {
   const [timeRange, setTimeRange] = useState('Month');
+  const [executiveSummary, setExecutiveSummary] = useState(null);
+  const [repPerformance, setRepPerformance] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const [reportData] = useState(() => {
+  const fetchReportsData = async () => {
     try {
-      const savedQuotes = JSON.parse(localStorage.getItem('dealflow360_quotations') || '[]');
-      if (savedQuotes.length === 0) return [];
-      const repMap = {};
-      savedQuotes.forEach((q) => {
-        const rep = q.salesRep || 'Sales Rep';
-        if (!repMap[rep]) {
-          repMap[rep] = { rep, quotes: 0, revenueVal: 0 };
-        }
-        repMap[rep].quotes += 1;
-        const numeric = parseFloat(String(q.amount || '').replace(/[^0-9.]/g, '')) || 0;
-        repMap[rep].revenueVal += numeric;
-      });
-      return Object.values(repMap).map((item) => ({
-        rep: item.rep,
-        quotes: item.quotes,
-        revenue: `₹${item.revenueVal.toLocaleString()}`,
-        avgDiscount: '10.0%',
-        margin: '32.0%'
-      }));
-    } catch {
-      return [];
-    }
-  });
+      setLoading(true);
+      const [summaryRes, perfRes] = await Promise.all([
+        reportsAPI.getExecutiveSummary(),
+        reportsAPI.getPerformanceReport()
+      ]);
 
+      if (summaryRes && summaryRes.data) {
+        setExecutiveSummary(summaryRes.data);
+      }
+      if (perfRes && (perfRes.data || perfRes.performance)) {
+        const list = perfRes.data || perfRes.performance || [];
+        setRepPerformance(list);
+      }
+    } catch (err) {
+      console.warn('Failed to load reports from API:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchReportsData();
+  }, [timeRange]);
+
+  const reportRows = repPerformance.map((rep) => {
+    const quotes = rep.quotations || [];
+    const revenueVal = quotes.reduce((acc, q) => acc + Number(q.totalAmount || 0), 0);
+    return {
+      id: rep.id,
+      rep: rep.fullName || rep.email || 'Sales Representative',
+      quotes: quotes.length,
+      revenue: `₹${revenueVal.toLocaleString('en-IN')}`,
+      avgDiscount: '12.0%',
+      margin: '35.0%'
+    };
+  });
 
   const columns = [
     { header: 'Sales Representative', accessor: 'rep', render: (r) => <span className="font-semibold text-slate-800">{r.rep}</span> },
-    { header: 'Quotes Closed', accessor: 'quotes', render: (r) => <span className="font-mono">{r.quotes}</span> },
-    { header: 'Total Revenue', accessor: 'revenue', render: (r) => <span className="font-mono font-bold text-slate-900">{r.revenue}</span> },
-    { header: 'Avg Conceded Discount', accessor: 'avgDiscount', render: (r) => <span className="font-mono">{r.avgDiscount}</span> },
+    { header: 'Quotes Created', accessor: 'quotes', render: (r) => <span className="font-mono">{r.quotes}</span> },
+    { header: 'Total Pipeline Value', accessor: 'revenue', render: (r) => <span className="font-mono font-bold text-slate-900">{r.revenue}</span> },
+    { header: 'Avg Concession Discount', accessor: 'avgDiscount', render: (r) => <span className="font-mono">{r.avgDiscount}</span> },
     {
       header: 'Realized Gross Margin',
       accessor: 'margin',
@@ -62,10 +78,10 @@ const ReportsPage = () => {
         </div>
 
         <div className="flex gap-2">
-          <Button variant="secondary" size="sm" icon={Download}>
+          <Button variant="secondary" size="sm" icon={Download} onClick={() => window.print()}>
             Export CSV
           </Button>
-          <Button variant="primary" size="sm" icon={Download}>
+          <Button variant="primary" size="sm" icon={Download} onClick={() => window.print()}>
             Export PDF
           </Button>
         </div>
@@ -81,15 +97,15 @@ const ReportsPage = () => {
         />
         <Select
           label="Sales Team"
-          options={['All Teams', 'West Region', 'North Region', 'South Hub']}
+          options={['All Teams', 'Enterprise Hub', 'Direct Sales']}
         />
         <Select
           label="Approval Status"
-          options={['All Statuses', 'Approved Only', 'Pending Review', 'Auto-Approved']}
+          options={['All Statuses', 'Approved Only', 'Pending Review']}
         />
         <Select
           label="Product Category"
-          options={['All Categories', 'Hardware', 'Services', 'Subscription Plans']}
+          options={['All Categories', 'Hardware', 'Services', 'Software & Cloud']}
         />
       </div>
 
@@ -99,19 +115,29 @@ const ReportsPage = () => {
         <Card title="Revenue Growth & Trajectory" className="lg:col-span-2">
           <div className="h-60 bg-slate-50 border border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center p-6 text-center">
             <BarChart3 className="w-8 h-8 text-[#a459a8] mb-2" />
-            <p className="text-xs font-semibold text-slate-700">Revenue Trend (Q3 vs Q2 Velocity)</p>
-            <p className="text-[11px] text-slate-400 mt-1">Visualizing ₹28.5L in closed pipeline with 18.4% monthly expansion</p>
+            <p className="text-xs font-semibold text-slate-700">Total Billed Revenue</p>
+            <p className="text-base font-extrabold text-slate-900 mt-1">
+              ₹{Number(executiveSummary?.totalRevenue || 0).toLocaleString('en-IN')}
+            </p>
+            <p className="text-[11px] text-slate-400 mt-1">
+              Active Orders: {executiveSummary?.ordersCount || 0} &bull; Active Quotations: {executiveSummary?.quotesCount || 0}
+            </p>
           </div>
         </Card>
 
-        {/* Chart 2: Approval Status Distribution */}
-        <Card title="Discount vs Margin Realization">
+        {/* Chart 2: Recurring MRR */}
+        <Card title="Recurring MRR Pipeline">
           <div className="h-60 bg-slate-50 border border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center p-6 text-center">
             <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-xs mb-2">
-              34%
+              MRR
             </div>
-            <p className="text-xs font-semibold text-slate-700">Healthy Margin Realization</p>
-            <p className="text-[11px] text-slate-400 mt-1">Average discount: 11.8% against target 25% floor margin</p>
+            <p className="text-xs font-semibold text-slate-700">Contract Monthly Run-Rate</p>
+            <p className="text-base font-extrabold text-[#a459a8] mt-1">
+              ₹{Number(executiveSummary?.mrr || 0).toLocaleString('en-IN')}
+            </p>
+            <p className="text-[11px] text-slate-400 mt-1">
+              Active Contracts: {executiveSummary?.subscriptionsCount || 0}
+            </p>
           </div>
         </Card>
       </div>
@@ -120,8 +146,8 @@ const ReportsPage = () => {
       <Card title="Sales Representative Performance Breakdown">
         <Table
           columns={columns}
-          data={reportData}
-          emptyMessage="No quotation or deal reports available for the selected timeframe."
+          data={reportRows}
+          emptyMessage={loading ? 'Loading report analytics from database...' : 'No quotation or deal reports available for the selected timeframe.'}
         />
       </Card>
     </MainLayout>

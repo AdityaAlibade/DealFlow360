@@ -2,6 +2,7 @@ import React from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import {
   LayoutDashboard,
+  Inbox,
   FileText,
   CheckCircle2,
   Package,
@@ -19,6 +20,7 @@ import { PERMISSIONS } from '../../utils/permissions';
 
 const allNavItems = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, permission: null },
+  { label: 'Order Requests', path: '/order-requests', icon: Inbox, permission: PERMISSIONS.PRODUCT_REQUEST_VIEW },
   { label: 'Quotations', path: '/quotations', icon: FileText, permission: PERMISSIONS.QUOTATION_READ },
   { label: 'Approvals', path: '/approvals', icon: CheckCircle2, permission: PERMISSIONS.APPROVAL_READ },
   { label: 'Warehouses', path: '/warehouses', icon: Package, permission: PERMISSIONS.FULFILLMENT_READ },

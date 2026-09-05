@@ -1,41 +1,51 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, CheckCircle2, XCircle, ArrowUpRight } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
 import Card from '../components/common/Card';
 import Badge from '../components/common/Badge';
+import dealHealthAPI from '../api/dealHealthAPI';
 
 const DealHealthPage = () => {
   const navigate = useNavigate();
+  const [healthData, setHealthData] = useState(null);
+  const [alerts, setAlerts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const [quotations] = React.useState(() => {
+  const fetchHealthData = async () => {
     try {
-      return JSON.parse(localStorage.getItem('dealflow360_quotations') || '[]');
-    } catch {
-      return [];
-    }
-  });
+      setLoading(true);
+      const [dashRes, alertRes] = await Promise.all([
+        dealHealthAPI.getDashboard(),
+        dealHealthAPI.getAlerts()
+      ]);
 
-  const healthyCount = quotations.filter((q) => !(q.status || '').toLowerCase().includes('pending')).length;
-  const atRiskCount = quotations.filter((q) => (q.status || '').toLowerCase().includes('pending')).length;
+      if (dashRes && dashRes.data) {
+        setHealthData(dashRes.data);
+      }
+      if (alertRes && alertRes.data) {
+        setAlerts(Array.isArray(alertRes.data) ? alertRes.data : []);
+      }
+    } catch (err) {
+      console.warn('Failed to load deal health telemetry:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchHealthData();
+  }, []);
+
+  const healthyCount = healthData?.healthyDealsCount ?? healthData?.healthyCount ?? 0;
+  const atRiskCount = alerts.length || healthData?.atRiskCount || 0;
+  const criticalCount = healthData?.criticalCount || 0;
 
   const summaryCards = [
     { title: 'Healthy Deals', count: healthyCount, color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: CheckCircle2 },
-    { title: 'At Risk', count: atRiskCount, color: 'bg-amber-50 text-amber-700 border-amber-200', icon: AlertTriangle },
-    { title: 'Critical Anomalies', count: 0, color: 'bg-red-50 text-red-700 border-red-200', icon: XCircle }
+    { title: 'At Risk / High Discount', count: atRiskCount, color: 'bg-amber-50 text-amber-700 border-amber-200', icon: AlertTriangle },
+    { title: 'Critical Anomalies', count: criticalCount, color: 'bg-red-50 text-red-700 border-red-200', icon: XCircle }
   ];
-
-  const alerts = quotations
-    .filter((q) => (q.status || '').toLowerCase().includes('pending'))
-    .map((q, idx) => ({
-      id: idx + 1,
-      severity: 'WARNING',
-      variant: 'warning',
-      quote: q.id,
-      customer: q.customer,
-      message: 'Discount concession requires commercial approval sign-off',
-      time: q.date
-    }));
 
   return (
     <MainLayout>
@@ -68,33 +78,37 @@ const DealHealthPage = () => {
       {/* Active Alerts List */}
       <Card title="Active Deal Alerts" subtitle="Prioritized list of deals requiring intervention">
         <div className="space-y-3">
-          {alerts.length === 0 ? (
+          {loading ? (
+            <div className="py-10 text-center text-slate-400 text-xs">Loading deal risk telemetry...</div>
+          ) : alerts.length === 0 ? (
             <div className="py-10 text-center text-slate-400 text-xs">
-              All deals are operating within healthy governance thresholds. No active risk alerts detected.
+              All deals are operating within healthy governance thresholds. No active risk alerts detected in database.
             </div>
           ) : (
-            alerts.map((alert) => (
+            alerts.map((alert, idx) => (
               <div
-                key={alert.id}
-                onClick={() => navigate(`/quotations/${alert.quote}`)}
+                key={alert.id || idx}
+                onClick={() => alert.quotationId && navigate(`/quotations/${alert.quotationId}`)}
                 className="p-4 bg-white hover:bg-purple-50/40 rounded-xl border border-slate-200 hover:border-[#a459a8] transition-all cursor-pointer shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
               >
                 <div className="flex items-start gap-3">
-                  <Badge variant={alert.variant} className="mt-0.5 text-[10px] font-bold">
-                    {alert.severity}
+                  <Badge variant={alert.severity === 'CRITICAL' ? 'danger' : 'warning'} className="mt-0.5 text-[10px] font-bold">
+                    {alert.severity || 'WARNING'}
                   </Badge>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono font-bold text-[#a459a8] group-hover:underline">{alert.quote}</span>
+                      <span className="font-mono font-bold text-[#a459a8] group-hover:underline">{alert.quotation?.quoteNumber || alert.quote || alert.id}</span>
                       <span className="text-slate-400">&bull;</span>
-                      <span className="text-xs font-semibold text-slate-800">{alert.customer}</span>
+                      <span className="text-xs font-semibold text-slate-800">{alert.customer?.companyName || alert.customerName || 'Customer'}</span>
                     </div>
-                    <p className="text-xs text-slate-600 mt-1">{alert.message}</p>
+                    <p className="text-xs text-slate-600 mt-1">{alert.message || alert.reason || 'Concession discount exceeds standard authority threshold'}</p>
                   </div>
                 </div>
 
                 <div className="text-right flex-shrink-0 flex items-center gap-2 justify-end">
-                  <span className="text-[11px] text-slate-400">{alert.time}</span>
+                  <span className="text-[11px] text-slate-400">
+                    {alert.createdAt ? new Date(alert.createdAt).toLocaleDateString('en-IN') : 'Recent'}
+                  </span>
                   <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-[#a459a8]" />
                 </div>
               </div>

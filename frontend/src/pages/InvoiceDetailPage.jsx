@@ -1,21 +1,70 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CreditCard, Download, Printer } from 'lucide-react';
+import { ArrowLeft, CreditCard, Download, Printer, CheckCircle2, AlertCircle } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
 import Card from '../components/common/Card';
 import Badge from '../components/common/Badge';
 import Button from '../components/common/Button';
 import Modal from '../components/common/Modal';
+import invoiceAPI from '../api/invoiceAPI';
 
 const InvoiceDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [invoice, setInvoice] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentRef, setPaymentRef] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [toast, setToast] = useState(null);
 
-  const lineItems = [
-    { name: 'Laptop Pro 14 (Model X)', qty: 2, unitPrice: 1200, total: 2400 },
-    { name: 'Onsite Setup & Deployment', qty: 1, unitPrice: 330, total: 330 },
-  ];
+  const fetchInvoice = async () => {
+    try {
+      setLoading(true);
+      const res = await invoiceAPI.getById(id);
+      const invData = res?.data || res;
+      setInvoice(invData);
+      if (invData?.totalAmount) {
+        setPaymentAmount(String(invData.totalAmount));
+      }
+    } catch (err) {
+      console.warn('Failed to load invoice detail from API:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (id) {
+      fetchInvoice();
+    }
+  }, [id]);
+
+  const handleRecordPayment = async () => {
+    try {
+      setIsProcessing(true);
+      await invoiceAPI.recordPayment(id, {
+        amount: parseFloat(paymentAmount) || Number(invoice?.totalAmount || 0),
+        paymentMethod: 'BANK_TRANSFER',
+        referenceNumber: paymentRef || `TXN-${Date.now()}`
+      });
+      setToast({ type: 'success', text: 'Payment recorded and reconciled successfully!' });
+      setPaymentModalOpen(false);
+      fetchInvoice();
+    } catch (err) {
+      setToast({ type: 'danger', text: err.message || 'Failed to record payment' });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const isPaid = (invoice?.status || '').toUpperCase() === 'PAID';
+  const customer = invoice?.customer || invoice?.order?.customer || {};
+  const items = invoice?.items || invoice?.order?.items || [];
+  const totalAmount = Number(invoice?.totalAmount || invoice?.amount || 0);
+  const taxAmount = Number(invoice?.taxAmount || totalAmount * 0.18 / 1.18);
+  const subtotal = totalAmount - taxAmount;
 
   return (
     <MainLayout>
@@ -30,130 +79,153 @@ const InvoiceDetailPage = () => {
           </button>
           <div>
             <h1 className="text-xl font-extrabold text-slate-900">
-              Invoice Detail: <span className="text-[#a459a8]">{id || 'INV-2026-101'}</span>
+              Invoice Detail: <span className="text-[#a459a8]">{invoice?.invoiceNumber || id}</span>
             </h1>
-            <p className="text-xs text-slate-500">Customer: Tata Consultancy Services (TCS) &bull; Due Date: Sep 10, 2026</p>
+            <p className="text-xs text-slate-500">
+              Customer: {customer.companyName || customer.name || 'Customer Account'} &bull; Due Date: {invoice?.dueDate ? new Date(invoice.dueDate).toLocaleDateString('en-IN') : 'Net 30 Days'}
+            </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2.5">
-          <Button variant="secondary" size="sm" icon={Printer}>
+          <Button variant="secondary" size="sm" icon={Printer} onClick={() => window.print()}>
             Print
           </Button>
-          <Button variant="outline" size="sm" icon={Download}>
-            Download PDF
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            icon={CreditCard}
-            onClick={() => setPaymentModalOpen(true)}
-          >
-            Record Payment
-          </Button>
+          {!isPaid && (
+            <Button
+              variant="primary"
+              size="sm"
+              icon={CreditCard}
+              onClick={() => setPaymentModalOpen(true)}
+            >
+              Record Payment
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Invoice Card */}
-      <Card>
-        <div className="flex justify-between items-start pb-6 border-b border-slate-200">
-          <div>
-            <h3 className="text-lg font-bold text-slate-900">DealFlow360 Technologies Pvt Ltd</h3>
-            <p className="text-xs text-slate-500 mt-1">GSTIN: 27AABCT3518Q1ZP</p>
-            <p className="text-xs text-slate-500">Tech Park One, Mumbai, MH</p>
-          </div>
-          <div className="text-right">
-            <Badge variant="danger" dot className="text-xs px-3 py-1">🔴 Unpaid</Badge>
-            <p className="text-xs text-slate-400 mt-2 font-mono">Invoice #: {id || 'INV-2026-101'}</p>
-          </div>
+      {toast && (
+        <div className={`p-3.5 rounded-xl border text-xs font-semibold flex items-center gap-2 ${
+          toast.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'
+        }`}>
+          {toast.type === 'success' ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <AlertCircle className="w-4 h-4 text-red-600" />}
+          <span>{toast.text}</span>
         </div>
+      )}
 
-        {/* Customer info & line items */}
-        <div className="py-6">
-          <div className="mb-4">
-            <span className="text-[10px] uppercase font-bold text-slate-400">Billed To:</span>
-            <h4 className="text-sm font-bold text-slate-800">Tata Consultancy Services (TCS)</h4>
-            <p className="text-xs text-slate-500">Attn: Ananya Deshmukh, Fort, Mumbai, MH</p>
+      {loading ? (
+        <div className="py-12 text-center text-xs text-slate-400">Loading invoice from database...</div>
+      ) : (
+        <Card>
+          <div className="flex justify-between items-start pb-6 border-b border-slate-200">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">DealFlow360 Technologies Pvt Ltd</h3>
+              <p className="text-xs text-slate-500 mt-1">GSTIN: 27AABCT3518Q1ZP</p>
+              <p className="text-xs text-slate-500">Enterprise Quote-to-Cash Hub</p>
+            </div>
+            <div className="text-right">
+              <Badge variant={isPaid ? 'success' : 'danger'} dot className="text-xs px-3 py-1">
+                {isPaid ? '🟢 Paid' : '🔴 Unpaid'}
+              </Badge>
+              <p className="text-xs text-slate-400 mt-2 font-mono">Invoice #: {invoice?.invoiceNumber || id}</p>
+            </div>
           </div>
 
-          <table className="min-w-full divide-y divide-slate-200 text-xs">
-            <thead>
-              <tr className="bg-slate-50 text-slate-600 font-semibold uppercase">
-                <th className="px-4 py-2.5 text-left">Item Description</th>
-                <th className="px-4 py-2.5 text-center">Qty</th>
-                <th className="px-4 py-2.5 text-right">Unit Price</th>
-                <th className="px-4 py-2.5 text-right">Total (₹)</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {lineItems.map((item, idx) => (
-                <tr key={idx}>
-                  <td className="px-4 py-3 font-medium text-slate-800">{item.name}</td>
-                  <td className="px-4 py-3 text-center font-mono">{item.qty}</td>
-                  <td className="px-4 py-3 text-right font-mono">₹{item.unitPrice}</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-slate-900">₹{item.total}</td>
+          {/* Customer info & line items */}
+          <div className="py-6">
+            <div className="mb-4">
+              <span className="text-[10px] uppercase font-bold text-slate-400">Billed To:</span>
+              <h4 className="text-sm font-bold text-slate-800">{customer.companyName || customer.name || 'Account'}</h4>
+              <p className="text-xs text-slate-500">{customer.address || customer.city || 'Commercial Procurement'}</p>
+            </div>
+
+            <table className="min-w-full divide-y divide-slate-200 text-xs">
+              <thead>
+                <tr className="bg-slate-50 text-slate-600 font-semibold uppercase">
+                  <th className="px-4 py-2.5 text-left">Item Description</th>
+                  <th className="px-4 py-2.5 text-center">Qty</th>
+                  <th className="px-4 py-2.5 text-right">Unit Price</th>
+                  <th className="px-4 py-2.5 text-right">Total (₹)</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {items.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" className="px-4 py-6 text-center text-slate-400">
+                      Standard Contract Line Items
+                    </td>
+                  </tr>
+                ) : (
+                  items.map((item, idx) => (
+                    <tr key={idx}>
+                      <td className="px-4 py-3 font-medium text-slate-800">{item.product?.name || item.name || 'Product'}</td>
+                      <td className="px-4 py-3 text-center font-mono">{item.quantity || item.qty || 1}</td>
+                      <td className="px-4 py-3 text-right font-mono">₹{Number(item.unitPrice || item.price || 0).toLocaleString('en-IN')}</td>
+                      <td className="px-4 py-3 text-right font-mono font-bold text-slate-900">
+                        ₹{Number((item.quantity || item.qty || 1) * (item.unitPrice || item.price || 0)).toLocaleString('en-IN')}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
-        {/* Total calculation */}
-        <div className="border-t border-slate-200 pt-4 flex justify-end">
-          <div className="w-64 space-y-2 text-xs">
-            <div className="flex justify-between">
-              <span className="text-slate-500">Subtotal:</span>
-              <span className="font-semibold text-slate-800">₹2,730.00</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Tax Included:</span>
-              <span className="font-semibold text-slate-800">₹0.00</span>
-            </div>
-            <div className="flex justify-between pt-2 border-t border-slate-200 text-sm font-extrabold text-slate-900">
-              <span>Total Amount:</span>
-              <span className="text-base text-[#a459a8]">₹2,730.00</span>
+          {/* Totals */}
+          <div className="flex justify-end pt-4 border-t border-slate-200">
+            <div className="w-72 space-y-2 text-xs">
+              <div className="flex justify-between text-slate-600">
+                <span>Subtotal:</span>
+                <span className="font-mono">₹{subtotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+              </div>
+              <div className="flex justify-between text-slate-600">
+                <span>GST / Taxes:</span>
+                <span className="font-mono">₹{taxAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+              </div>
+              <div className="flex justify-between font-bold text-slate-900 pt-2 border-t border-slate-200 text-sm">
+                <span>Total Invoice Value:</span>
+                <span className="text-[#a459a8]">₹{totalAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+              </div>
             </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      )}
 
-      {/* Record Payment Modal */}
+      {/* Payment Modal */}
       <Modal
         isOpen={paymentModalOpen}
         onClose={() => setPaymentModalOpen(false)}
-        title="Record Received Payment"
+        title={`Record Payment for ${invoice?.invoiceNumber || id}`}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setPaymentModalOpen(false)}>
+            <Button variant="secondary" onClick={() => setPaymentModalOpen(false)} disabled={isProcessing}>
               Cancel
             </Button>
-            <Button
-              variant="primary"
-              onClick={() => {
-                setPaymentModalOpen(false);
-              }}
-            >
-              Record ₹2,730 Payment
+            <Button variant="primary" onClick={handleRecordPayment} disabled={isProcessing}>
+              {isProcessing ? 'Recording...' : 'Confirm Payment'}
             </Button>
           </>
         }
       >
-        <div className="space-y-4 text-xs">
+        <div className="space-y-4">
+          <p className="text-xs text-slate-600">Enter payment settlement details received from customer:</p>
           <div>
-            <label className="font-semibold text-slate-700">Payment Method</label>
-            <select className="w-full mt-1 p-2 border border-slate-300 rounded-lg text-xs">
-              <option>Bank Wire (NEFT / RTGS)</option>
-              <option>Corporate Card</option>
-              <option>UPI</option>
-              <option>Cheque</option>
-            </select>
+            <label className="text-xs font-semibold text-slate-700">Amount Received (₹):</label>
+            <input
+              type="number"
+              value={paymentAmount}
+              onChange={(e) => setPaymentAmount(e.target.value)}
+              className="w-full mt-1 p-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#a459a8]/30 font-mono font-bold"
+            />
           </div>
           <div>
-            <label className="font-semibold text-slate-700">Transaction / Reference ID</label>
+            <label className="text-xs font-semibold text-slate-700">Reference / UTR Number:</label>
             <input
               type="text"
-              placeholder="e.g. TXN-99882312"
-              className="w-full mt-1 p-2 border border-slate-300 rounded-lg text-xs"
+              value={paymentRef}
+              onChange={(e) => setPaymentRef(e.target.value)}
+              placeholder="e.g. UTR-HDFC-991823"
+              className="w-full mt-1 p-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#a459a8]/30 font-mono"
             />
           </div>
         </div>

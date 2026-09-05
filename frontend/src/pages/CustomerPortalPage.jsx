@@ -26,23 +26,28 @@ import Badge from '../components/common/Badge';
 import customerPortalAPI from '../api/customerPortalAPI';
 
 const CustomerPortalPage = () => {
-  const { token } = useParams();
+  const { token: routeToken } = useParams();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
+
+  const token = routeToken || user?.portalToken || user?.id || '';
 
   // Active Tab: 'quote' | 'catalog' | 'requests'
   const [activeTab, setActiveTab] = useState('quote');
+  const [requestsSubTab, setRequestsSubTab] = useState('all'); // 'all' | 'negotiations' | 'products' | 'orders'
 
   const [quoteData, setQuoteData] = useState(null);
   const [products, setProducts] = useState([]);
   const [productRequests, setProductRequests] = useState([]);
+  const [negotiationsList, setNegotiationsList] = useState([]);
+  const [ordersList, setOrdersList] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Negotiation state
-  const [comment, setComment] = useState('Can this be 15% off instead of 10%? We are committing to a 2-year term.');
-  const [counterDiscount, setCounterDiscount] = useState(15);
-  const [requestedDate, setRequestedDate] = useState('2026-09-01');
+  const [comment, setComment] = useState('');
+  const [counterDiscount, setCounterDiscount] = useState(0);
+  const [requestedDate, setRequestedDate] = useState('');
   const [submittedStatus, setSubmittedStatus] = useState(null);
   const [activeLineComment, setActiveLineComment] = useState({});
 
@@ -56,6 +61,39 @@ const CustomerPortalPage = () => {
 
   const categories = ['All', 'Hardware', 'Services', 'Software & Cloud', 'Warranty & SLA'];
 
+  const normalizeQuoteData = (raw) => {
+    if (!raw) return null;
+    const rawItems = Array.isArray(raw.lineItems) ? raw.lineItems : Array.isArray(raw.items) ? raw.items : [];
+    const lineItems = rawItems.map((it, idx) => ({
+      id: String(it.id || `item-${idx + 1}`),
+      name: it.name || it.product?.name || `Product #${it.productId || idx + 1}`,
+      qty: it.qty || it.quantity || 1,
+      price: it.price || it.unitPrice || 0,
+      discount: it.discount || 0,
+      total: it.total || it.totalPrice || ((it.qty || it.quantity || 1) * (it.price || it.unitPrice || 0))
+    }));
+
+    const negotiationHistory = Array.isArray(raw.negotiationHistory)
+      ? raw.negotiationHistory.map((n) => ({
+          actor: n.actor || n.actorRole || 'Customer',
+          timestamp: n.timestamp || n.createdAt || new Date().toISOString(),
+          message: n.message || n.comment || 'Negotiation update'
+        }))
+      : [];
+
+    return {
+      ...raw,
+      quotationId: raw.quotationId || raw.quoteNumber || raw.id || 'QUOTATION-PREVIEW',
+      customerName: raw.customerName || raw.customer?.companyName || raw.customer?.name || 'Valued Customer',
+      contactPerson: raw.contactPerson || raw.customer?.contactPerson || raw.customer?.name || 'Representative',
+      quoteValidity: raw.quoteValidity || (raw.expiresAt ? new Date(raw.expiresAt).toLocaleDateString('en-IN') : '30 Days'),
+      currency: raw.currency || 'INR',
+      currentDiscount: raw.currentDiscount ?? (lineItems[0]?.discount || 0),
+      lineItems,
+      negotiationHistory
+    };
+  };
+
   const refreshAllData = async () => {
     try {
       const [qRes, pRes, reqRes] = await Promise.all([
@@ -64,20 +102,32 @@ const CustomerPortalPage = () => {
         customerPortalAPI.getProductRequests(token)
       ]);
 
-      if (qRes && qRes.data) {
-        setQuoteData(qRes.data);
-        setCounterDiscount(qRes.data.currentDiscount);
+      if (qRes && (qRes.data || qRes.quotationId || qRes.id)) {
+        const normalized = normalizeQuoteData(qRes.data || qRes);
+        setQuoteData(normalized);
+        if (normalized?.currentDiscount !== undefined) {
+          setCounterDiscount(normalized.currentDiscount);
+        }
       }
-      if (pRes && pRes.data) {
-        setProducts(pRes.data);
+      if (pRes) {
+        const productList = Array.isArray(pRes.data) ? pRes.data : Array.isArray(pRes) ? pRes : [];
+        setProducts(productList);
         const initialQty = {};
-        pRes.data.forEach((p) => {
+        productList.forEach((p) => {
           initialQty[p.id] = initialQty[p.id] || 1;
         });
         setRequestQuantities((prev) => ({ ...initialQty, ...prev }));
       }
-      if (reqRes && reqRes.data) {
-        setProductRequests(reqRes.data);
+      if (reqRes) {
+        if (reqRes.data && typeof reqRes.data === 'object' && !Array.isArray(reqRes.data)) {
+          setProductRequests(reqRes.data.productRequests || []);
+          setNegotiationsList(reqRes.data.negotiations || []);
+          setOrdersList(reqRes.data.orders || []);
+        } else if (Array.isArray(reqRes.data)) {
+          setProductRequests(reqRes.data);
+        } else if (Array.isArray(reqRes)) {
+          setProductRequests(reqRes);
+        }
       }
     } catch (err) {
       setError(err.message || 'Unauthorized: Invalid or expired quotation access token.');
@@ -109,17 +159,31 @@ const CustomerPortalPage = () => {
 
   const handleQtyChange = (productId, delta) => {
     setRequestQuantities((prev) => {
-      const current = prev[productId] || 1;
-      const next = Math.max(1, Math.min(50, current + delta));
+      const current = prev[productId] !== undefined ? prev[productId] : 1;
+      const next = Math.max(0, Math.min(50, current + delta));
       return { ...prev, [productId]: next };
     });
   };
 
+  const handleDirectQtyChange = (productId, value) => {
+    if (value === '') {
+      setRequestQuantities((prev) => ({ ...prev, [productId]: 0 }));
+      return;
+    }
+    const parsed = parseInt(value, 10);
+    const next = isNaN(parsed) ? 0 : Math.max(0, Math.min(50, parsed));
+    setRequestQuantities((prev) => ({ ...prev, [productId]: next }));
+  };
+
   const handleRequestProduct = async (product) => {
+    const qty = requestQuantities[product.id] !== undefined ? requestQuantities[product.id] : 1;
+    if (qty <= 0) {
+      setError('Please select a quantity greater than 0 before submitting a request.');
+      return;
+    }
     setSubmittingRequestId(product.id);
     setError(null);
     try {
-      const qty = requestQuantities[product.id] || 1;
       const msg = requestMessages[product.id] || `Please include ${qty}x ${product.name} in our active quotation proposal.`;
 
       await customerPortalAPI.createProductRequest(token, {
@@ -130,15 +194,14 @@ const CustomerPortalPage = () => {
 
       setToastMessage({
         type: 'success',
-        text: `Product request for ${qty}x ${product.name} sent to your Sales Representative!`
+        text: `Product request for ${qty}x ${product.name} sent to your Sales Representative and added to My Requests!`
       });
 
       // Clear custom message
       setRequestMessages((prev) => ({ ...prev, [product.id]: '' }));
 
       // Refresh requests list
-      const reqRes = await customerPortalAPI.getProductRequests(token);
-      if (reqRes && reqRes.data) setProductRequests(reqRes.data);
+      await refreshAllData();
 
       setTimeout(() => setToastMessage(null), 6000);
     } catch (err) {
@@ -155,8 +218,7 @@ const CustomerPortalPage = () => {
         type: 'info',
         text: `Product request ${requestId} has been cancelled.`
       });
-      const reqRes = await customerPortalAPI.getProductRequests(token);
-      if (reqRes && reqRes.data) setProductRequests(reqRes.data);
+      await refreshAllData();
       setTimeout(() => setToastMessage(null), 5000);
     } catch (err) {
       setError(err.message || 'Failed to cancel product request');
@@ -171,8 +233,16 @@ const CustomerPortalPage = () => {
         requestedDate
       });
       setSubmittedStatus(res);
+      setToastMessage({
+        type: 'success',
+        text: 'Counter-offer submitted and recorded in your My Requests history!'
+      });
       const updated = await customerPortalAPI.getQuoteByToken(token);
-      setQuoteData(updated.data);
+      if (updated && (updated.data || updated.id)) {
+        setQuoteData(normalizeQuoteData(updated.data || updated));
+      }
+      await refreshAllData();
+      setTimeout(() => setToastMessage(null), 6000);
     } catch {
       setError('Failed to submit counter proposal');
     }
@@ -182,8 +252,16 @@ const CustomerPortalPage = () => {
     try {
       const res = await customerPortalAPI.acceptQuote(token);
       setSubmittedStatus(res);
+      setToastMessage({
+        type: 'success',
+        text: 'Quotation confirmed! Order created and warehouse fulfillment initiated.'
+      });
       const updated = await customerPortalAPI.getQuoteByToken(token);
-      setQuoteData(updated.data);
+      if (updated && (updated.data || updated.id)) {
+        setQuoteData(normalizeQuoteData(updated.data || updated));
+      }
+      await refreshAllData();
+      setTimeout(() => setToastMessage(null), 6000);
     } catch {
       setError('Failed to confirm quotation');
     }
@@ -298,9 +376,9 @@ const CustomerPortalPage = () => {
             >
               <ListOrdered className="w-3.5 h-3.5" />
               <span>My Requests</span>
-              {productRequests.length > 0 && (
+              {(productRequests.length + negotiationsList.length + ordersList.length) > 0 && (
                 <span className="ml-1 px-1.5 py-0.2 bg-[#a459a8] text-white rounded-full text-[9px] font-extrabold">
-                  {productRequests.length}
+                  {productRequests.length + negotiationsList.length + ordersList.length}
                 </span>
               )}
             </button>
@@ -392,8 +470,9 @@ const CustomerPortalPage = () => {
             {/* Product Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {products.map((p) => {
-                const qty = requestQuantities[p.id] || 1;
+                const qty = requestQuantities[p.id] !== undefined ? requestQuantities[p.id] : 1;
                 const isSubmitting = submittingRequestId === p.id;
+                const productPrice = Number(p.basePrice ?? p.price ?? p.unitPrice ?? 0);
                 return (
                   <div
                     key={p.id}
@@ -406,15 +485,15 @@ const CustomerPortalPage = () => {
                           <h3 className="text-sm font-bold text-slate-900 leading-snug">{p.name}</h3>
                         </div>
                         <div className="text-right flex-shrink-0">
-                          <p className="text-base font-extrabold text-[#a459a8] font-mono">${p.unitPrice}</p>
-                          <p className="text-[10px] text-slate-400">{p.unit}</p>
+                          <p className="text-base font-extrabold text-[#a459a8] font-mono">₹{productPrice.toLocaleString('en-IN')}</p>
+                          <p className="text-[10px] text-slate-400">{p.unit || 'unit'}</p>
                         </div>
                       </div>
 
                       <p className="text-xs text-slate-600 mt-2 leading-relaxed">{p.description}</p>
 
                       {/* Specs */}
-                      {p.specs && (
+                      {Array.isArray(p.specs) && p.specs.length > 0 && (
                         <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap gap-1.5">
                           {p.specs.map((spec, idx) => (
                             <span key={idx} className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md font-medium">
@@ -429,21 +508,32 @@ const CustomerPortalPage = () => {
                     <div className="pt-3 border-t border-slate-100 space-y-3 bg-slate-50/70 p-3.5 rounded-xl border border-slate-100">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-slate-700">Select Quantity:</span>
-                        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg p-1 shadow-sm">
+                        <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg p-1 shadow-sm">
                           <button
                             type="button"
                             onClick={() => handleQtyChange(p.id, -1)}
-                            className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs"
+                            disabled={qty <= 0}
+                            className="w-7 h-7 rounded bg-slate-100 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed text-slate-700 flex items-center justify-center font-bold text-xs transition-colors"
+                            aria-label="Decrease quantity"
                           >
-                            <Minus className="w-3 h-3" />
+                            <Minus className="w-3.5 h-3.5" />
                           </button>
-                          <span className="w-8 text-center text-xs font-bold font-mono text-slate-800">{qty}</span>
+                          <input
+                            type="number"
+                            min="0"
+                            max="50"
+                            value={qty}
+                            onChange={(e) => handleDirectQtyChange(p.id, e.target.value)}
+                            className="w-10 text-center text-xs font-bold font-mono text-slate-800 bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-[#a459a8] rounded"
+                          />
                           <button
                             type="button"
                             onClick={() => handleQtyChange(p.id, 1)}
-                            className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs"
+                            disabled={qty >= 50}
+                            className="w-7 h-7 rounded bg-slate-100 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed text-slate-700 flex items-center justify-center font-bold text-xs transition-colors"
+                            aria-label="Increase quantity"
                           >
-                            <Plus className="w-3 h-3" />
+                            <Plus className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </div>
@@ -463,11 +553,19 @@ const CustomerPortalPage = () => {
                         variant="primary"
                         size="sm"
                         icon={Send}
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || qty <= 0}
                         onClick={() => handleRequestProduct(p)}
-                        className="w-full bg-[#a459a8] hover:bg-[#924b96] py-2 text-xs font-bold"
+                        className={`w-full py-2 text-xs font-bold transition-all ${
+                          qty <= 0
+                            ? '!bg-slate-200 !text-slate-400 !border-slate-200 cursor-not-allowed shadow-none'
+                            : 'bg-[#a459a8] hover:bg-[#924b96] text-white'
+                        }`}
                       >
-                        {isSubmitting ? 'Submitting Request...' : `Request ${qty}x Product`}
+                        {isSubmitting
+                          ? 'Submitting Request...'
+                          : qty <= 0
+                          ? 'Select Quantity (0 selected)'
+                          : `Request ${qty}x Product`}
                       </Button>
                     </div>
                   </div>
@@ -478,19 +576,19 @@ const CustomerPortalPage = () => {
         )}
 
         {/* ===================================================
-            TAB 2: MY PRODUCT REQUESTS
+            TAB 2: MY REQUESTS & NEGOTIATIONS DASHBOARD
         =================================================== */}
         {activeTab === 'requests' && (
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-              <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 pb-3 border-b border-slate-100">
                 <div>
                   <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
                     <ListOrdered className="w-5 h-5 text-[#a459a8]" />
-                    My Product Requests History
+                    My Activity & Requests History
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Track the status of all requested products sent to your dedicated Sales Representative.
+                    Track the live review status of your quotation counter-offers, product requests, and confirmed orders.
                   </p>
                 </div>
                 <Button
@@ -499,97 +597,306 @@ const CustomerPortalPage = () => {
                   icon={ShoppingBag}
                   onClick={() => setActiveTab('catalog')}
                 >
-                  Browse More Products
+                  Browse Catalog
                 </Button>
               </div>
 
-              {productRequests.length === 0 ? (
-                <div className="py-12 text-center space-y-3">
-                  <div className="w-12 h-12 bg-purple-50 text-[#a459a8] rounded-2xl flex items-center justify-center mx-auto">
-                    <ShoppingBag className="w-6 h-6" />
+              {/* Sub-Tabs: All | Negotiations | Product Requests | Orders */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                <button
+                  onClick={() => setRequestsSubTab('all')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    requestsSubTab === 'all'
+                      ? 'bg-[#a459a8] text-white shadow-sm'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  All Activity ({negotiationsList.length + productRequests.length + ordersList.length})
+                </button>
+
+                <button
+                  onClick={() => setRequestsSubTab('negotiations')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
+                    requestsSubTab === 'negotiations'
+                      ? 'bg-[#a459a8] text-white shadow-sm'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  <span>Counter-Offers & Negotiations</span>
+                  <span className="px-1.5 py-0.2 bg-purple-200 text-purple-900 rounded-full text-[10px] font-extrabold">
+                    {negotiationsList.length}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setRequestsSubTab('products')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
+                    requestsSubTab === 'products'
+                      ? 'bg-[#a459a8] text-white shadow-sm'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  <span>Product Requests</span>
+                  <span className="px-1.5 py-0.2 bg-purple-200 text-purple-900 rounded-full text-[10px] font-extrabold">
+                    {productRequests.length}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setRequestsSubTab('orders')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
+                    requestsSubTab === 'orders'
+                      ? 'bg-[#a459a8] text-white shadow-sm'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  <span>Confirmed Orders</span>
+                  <span className="px-1.5 py-0.2 bg-purple-200 text-purple-900 rounded-full text-[10px] font-extrabold">
+                    {ordersList.length}
+                  </span>
+                </button>
+              </div>
+
+              {/* 1. NEGOTIATIONS / COUNTER-OFFERS SECTION */}
+              {(requestsSubTab === 'all' || requestsSubTab === 'negotiations') && (
+                <div className="pt-2 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-[#a459a8]" />
+                      Quotation Counter-Offers & Discount Requests ({negotiationsList.length})
+                    </h3>
                   </div>
-                  <h4 className="text-sm font-bold text-slate-800">No Product Requests Submitted Yet</h4>
-                  <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                    You can browse our catalog of hardware, enterprise services, and SLA plans to request additions to your active proposal.
-                  </p>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    className="mt-2 bg-[#a459a8]"
-                    onClick={() => setActiveTab('catalog')}
-                  >
-                    Open Product Catalog
-                  </Button>
+
+                  {negotiationsList.length === 0 ? (
+                    requestsSubTab === 'negotiations' && (
+                      <div className="py-8 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                        No counter-offers submitted yet. You can submit discount counter-proposals on the Quotation tab.
+                      </div>
+                    )
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-slate-200 text-xs">
+                        <thead>
+                          <tr className="text-slate-500 font-semibold uppercase bg-slate-50/70">
+                            <th className="py-2.5 px-3 text-left">Offer ID</th>
+                            <th className="py-2.5 px-3 text-left">Quote Ref</th>
+                            <th className="py-2.5 px-3 text-left">Item / Scope</th>
+                            <th className="py-2.5 px-3 text-right">Requested Price</th>
+                            <th className="py-2.5 px-3 text-center">Discount</th>
+                            <th className="py-2.5 px-3 text-center">Review Status</th>
+                            <th className="py-2.5 px-3 text-left">Submitted Date</th>
+                            <th className="py-2.5 px-3 text-left">Justification / Notes</th>
+                            <th className="py-2.5 px-3 text-right">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {negotiationsList.map((neg) => {
+                            let badgeVariant = 'warning';
+                            let statusLabel = neg.status;
+                            if (neg.status === 'APPROVAL_REQUIRED' || neg.status === 'PENDING') {
+                              badgeVariant = 'warning';
+                              statusLabel = 'UNDER REVIEW';
+                            } else if (neg.status === 'APPROVED' || neg.status === 'ACCEPTED') {
+                              badgeVariant = 'success';
+                              statusLabel = 'APPROVED';
+                            } else if (neg.status === 'REJECTED') {
+                              badgeVariant = 'danger';
+                              statusLabel = 'REJECTED';
+                            }
+
+                            return (
+                              <tr key={neg.id || neg.negotiationId} className="hover:bg-slate-50/50">
+                                <td className="py-3 px-3 font-mono font-bold text-[#a459a8]">{neg.id}</td>
+                                <td className="py-3 px-3 font-semibold text-slate-800">{neg.quoteNumber || quoteData?.quotationId}</td>
+                                <td className="py-3 px-3 text-slate-700 font-medium">{neg.productName}</td>
+                                <td className="py-3 px-3 text-right font-mono font-bold text-slate-900">
+                                  ₹{Number(neg.requestedPrice || 0).toLocaleString('en-IN')}
+                                </td>
+                                <td className="py-3 px-3 text-center font-mono font-bold text-emerald-600">
+                                  {neg.discountPercent}%
+                                </td>
+                                <td className="py-3 px-3 text-center">
+                                  <Badge variant={badgeVariant} dot>{statusLabel}</Badge>
+                                </td>
+                                <td className="py-3 px-3 text-slate-500">
+                                  {new Date(neg.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </td>
+                                <td className="py-3 px-3 text-slate-600 max-w-xs truncate" title={neg.message}>
+                                  {neg.message || 'No notes attached'}
+                                </td>
+                                <td className="py-3 px-3 text-right">
+                                  <button
+                                    onClick={() => setActiveTab('quote')}
+                                    className="px-2 py-1 text-[11px] font-bold text-[#a459a8] hover:bg-purple-50 rounded-lg border border-purple-200 transition-colors inline-flex items-center gap-1"
+                                  >
+                                    View Quote <ArrowRight className="w-3 h-3" />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-slate-200 text-xs">
-                    <thead>
-                      <tr className="text-slate-500 font-semibold uppercase bg-slate-50/70">
-                        <th className="py-3 px-3 text-left">Request ID</th>
-                        <th className="py-3 px-3 text-left">Product</th>
-                        <th className="py-3 px-3 text-center">Qty</th>
-                        <th className="py-3 px-3 text-center">Status</th>
-                        <th className="py-3 px-3 text-left">Requested Date</th>
-                        <th className="py-3 px-3 text-left">Sales Representative Response</th>
-                        <th className="py-3 px-3 text-right">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {productRequests.map((req) => {
+              )}
+
+              {/* 2. PRODUCT & BUNDLE REQUESTS SECTION */}
+              {(requestsSubTab === 'all' || requestsSubTab === 'products') && (
+                <div className="pt-4 space-y-3 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                      <ShoppingBag className="w-3.5 h-3.5 text-[#a459a8]" />
+                      Product & Bundle Inclusions ({productRequests.length})
+                    </h3>
+                  </div>
+
+                  {productRequests.length === 0 ? (
+                    <div className="py-8 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                      No hardware or service requests submitted. Browse the Products & Services catalog to request item additions.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-slate-200 text-xs">
+                        <thead>
+                          <tr className="text-slate-500 font-semibold uppercase bg-slate-50/70">
+                            <th className="py-2.5 px-3 text-left">Request ID</th>
+                            <th className="py-2.5 px-3 text-left">Product</th>
+                            <th className="py-2.5 px-3 text-center">Qty</th>
+                            <th className="py-2.5 px-3 text-right">Unit Price</th>
+                            <th className="py-2.5 px-3 text-right">Est. Total Value</th>
+                            <th className="py-2.5 px-3 text-center">Status</th>
+                            <th className="py-2.5 px-3 text-left">Linked Quotation</th>
+                            <th className="py-2.5 px-3 text-left">Requested Date</th>
+                            <th className="py-2.5 px-3 text-right">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {productRequests.map((req) => {
+                            let badgeVariant = 'warning';
+                            if (req.status === 'ACCEPTED' || req.status === 'CONFIRMED' || req.status === 'APPROVED') badgeVariant = 'success';
+                            if (req.status === 'REJECTED' || req.status === 'CANCELLED') badgeVariant = 'danger';
+                            if (req.status === 'QUOTATION_CREATED' || req.status === 'QUOTED') badgeVariant = 'info';
+
+                            const linkedQuote = req.linkedQuotation || (req.quotations && req.quotations.length > 0 ? req.quotations[0] : null);
+                            const totalEstValue = req.totalAmount || req.estimatedTotal || ((req.quantity || 1) * (req.unitPrice || 0));
+
+                            return (
+                              <tr key={req.id || req.requestId} className="hover:bg-slate-50/50">
+                                <td className="py-3 px-3 font-mono font-bold text-[#a459a8]">{req.id}</td>
+                                <td className="py-3 px-3">
+                                  <p className="font-bold text-slate-800">{req.productName}</p>
+                                  <p className="text-[10px] text-slate-400">{req.category}</p>
+                                </td>
+                                <td className="py-3 px-3 text-center font-mono font-bold">{req.quantity}</td>
+                                <td className="py-3 px-3 text-right font-mono text-slate-600">
+                                  ₹{Number(req.unitPrice || 0).toLocaleString('en-IN')}
+                                </td>
+                                <td className="py-3 px-3 text-right font-mono font-bold text-slate-900">
+                                  ₹{Number(totalEstValue || 0).toLocaleString('en-IN')}
+                                </td>
+                                <td className="py-3 px-3 text-center">
+                                  <Badge variant={badgeVariant} dot>{req.status}</Badge>
+                                </td>
+                                <td className="py-3 px-3">
+                                  {linkedQuote ? (
+                                    <div className="space-y-0.5">
+                                      <span className="font-mono font-bold text-purple-800 bg-purple-50 px-2 py-0.5 rounded border border-purple-200 text-[11px] block w-fit">
+                                        #{linkedQuote.quoteNumber || linkedQuote.id}
+                                      </span>
+                                      <span className="text-[10px] text-slate-600 block">
+                                        Amount: <span className="font-semibold text-slate-900">₹{Number(linkedQuote.totalAmount || linkedQuote.total || 0).toLocaleString('en-IN')}</span>
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-[10px] text-slate-400 italic">Quotation in progress</span>
+                                  )}
+                                </td>
+                                <td className="py-3 px-3 text-slate-500">
+                                  {new Date(req.createdAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </td>
+                                <td className="py-3 px-3 text-right">
+                                  {req.status === 'PENDING' ? (
+                                    <button
+                                      onClick={() => handleCancelRequest(req.id || req.requestId)}
+                                      className="px-2.5 py-1 text-[11px] font-bold text-red-600 hover:bg-red-50 rounded-lg border border-red-200 transition-colors cursor-pointer"
+                                    >
+                                      Cancel
+                                    </button>
+                                  ) : linkedQuote ? (
+                                    <button
+                                      onClick={() => {
+                                        if (linkedQuote.portalToken && linkedQuote.portalToken !== token) {
+                                          navigate(`/customer-portal/${linkedQuote.portalToken}`);
+                                        } else {
+                                          setActiveTab('quote');
+                                        }
+                                      }}
+                                      className="px-2.5 py-1 text-[11px] font-bold text-[#a459a8] hover:bg-purple-50 rounded-lg border border-purple-200 transition-colors inline-flex items-center gap-1 cursor-pointer"
+                                    >
+                                      View Quote <ArrowRight className="w-3 h-3" />
+                                    </button>
+                                  ) : (
+                                    <span className="text-slate-400 text-[10px]">&mdash;</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 3. CONFIRMED ORDERS & SHIPMENTS SECTION */}
+              {(requestsSubTab === 'all' || requestsSubTab === 'orders') && (
+                <div className="pt-4 space-y-3 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-[#a459a8]" />
+                      Confirmed Orders & Delivery Tracking ({ordersList.length})
+                    </h3>
+                  </div>
+
+                  {ordersList.length === 0 ? (
+                    <div className="py-8 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                      No confirmed orders found. Once you accept a quotation, your order and warehouse delivery tracking will appear here.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {ordersList.map((ord) => {
                         let badgeVariant = 'warning';
-                        if (req.status === 'ACCEPTED') badgeVariant = 'success';
-                        if (req.status === 'REJECTED') badgeVariant = 'danger';
-                        if (req.status === 'CANCELLED') badgeVariant = 'default';
+                        if (ord.status === 'COMPLETED') badgeVariant = 'success';
+                        if (ord.status === 'PARTIALLY_FULFILLED') badgeVariant = 'warning';
 
                         return (
-                          <tr key={req.id} className="hover:bg-slate-50/50">
-                            <td className="py-3 px-3 font-mono font-bold text-[#a459a8]">{req.id}</td>
-                            <td className="py-3 px-3">
-                              <p className="font-bold text-slate-800">{req.productName}</p>
-                              <p className="text-[10px] text-slate-400">{req.category} &bull; ${req.unitPrice} base</p>
-                            </td>
-                            <td className="py-3 px-3 text-center font-mono font-bold">{req.quantity}</td>
-                            <td className="py-3 px-3 text-center">
-                              <Badge variant={badgeVariant} dot>{req.status}</Badge>
-                            </td>
-                            <td className="py-3 px-3 text-slate-500">
-                              {new Date(req.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
-                            </td>
-                            <td className="py-3 px-3 text-slate-700 max-w-xs">
-                              {req.salesResponse ? (
-                                <div className="p-2 bg-slate-50 border border-slate-200 rounded-lg text-[11px]">
-                                  <span className="font-semibold text-slate-800">{req.reviewedBy || 'Sales Rep'}: </span>
-                                  {req.salesResponse}
-                                </div>
-                              ) : (
-                                <span className="text-slate-400 italic text-[11px]">Awaiting sales rep review...</span>
-                              )}
-                            </td>
-                            <td className="py-3 px-3 text-right">
-                              {req.status === 'PENDING' ? (
-                                <button
-                                  onClick={() => handleCancelRequest(req.id)}
-                                  className="px-2.5 py-1 text-[11px] font-bold text-red-600 hover:bg-red-50 rounded-lg border border-red-200 transition-colors"
-                                >
-                                  Cancel
-                                </button>
-                              ) : req.status === 'ACCEPTED' ? (
-                                <button
-                                  onClick={() => setActiveTab('quote')}
-                                  className="px-2.5 py-1 text-[11px] font-bold text-[#a459a8] hover:bg-purple-50 rounded-lg border border-purple-200 transition-colors flex items-center gap-1 ml-auto"
-                                >
-                                  View in Quote <ArrowRight className="w-3 h-3" />
-                                </button>
-                              ) : (
-                                <span className="text-slate-400 text-[10px]">&mdash;</span>
-                              )}
-                            </td>
-                          </tr>
+                          <div key={ord.id || ord.orderId} className="p-4 bg-slate-50/70 border border-slate-200 rounded-2xl space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="font-mono font-bold text-sm text-[#a459a8]">{ord.orderNumber}</span>
+                              <Badge variant={badgeVariant} dot>{ord.status}</Badge>
+                            </div>
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="text-slate-500">Order Amount:</span>
+                              <span className="font-mono font-bold text-slate-900">₹{Number(ord.totalAmount || 0).toLocaleString('en-IN')}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="text-slate-500">Fulfillment Status:</span>
+                              <span className="font-mono font-semibold text-purple-900">
+                                {ord.totalFulfilled} fulfilled &bull; {ord.totalBackordered} backordered
+                              </span>
+                            </div>
+                            <div className="pt-2 border-t border-slate-200 text-[11px] text-slate-400 flex justify-between">
+                              <span>Placed on {new Date(ord.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                              <span className="text-emerald-700 font-bold">{ord.fulfillmentCount} Shipments Dispatched</span>
+                            </div>
+                          </div>
                         );
                       })}
-                    </tbody>
-                  </table>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -638,25 +945,25 @@ const CustomerPortalPage = () => {
                           <th className="py-2 text-center">Qty</th>
                           <th className="py-2 text-right">Price</th>
                           <th className="py-2 text-right">Discount</th>
-                          <th className="py-2 text-right">Net ({quoteData.currency})</th>
+                          <th className="py-2 text-right">Net ({quoteData?.currency || 'INR'})</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {quoteData.lineItems.map((item) => (
+                        {(quoteData?.lineItems || []).map((item) => (
                           <React.Fragment key={item.id}>
                             <tr>
                               <td className="py-3 font-medium text-slate-800">
                                 {item.name}
-                                {item.id.includes('req') && (
+                                {String(item.id).includes('req') && (
                                   <span className="ml-2 px-1.5 py-0.2 bg-purple-100 text-purple-700 text-[9px] font-bold rounded">
                                     Added from Product Request
                                   </span>
                                 )}
                               </td>
                               <td className="py-3 text-center font-mono">{item.qty}</td>
-                              <td className="py-3 text-right font-mono">${item.price}</td>
+                              <td className="py-3 text-right font-mono">₹{Number(item.price || 0).toLocaleString('en-IN')}</td>
                               <td className="py-3 text-right font-mono text-emerald-600 font-semibold">{item.discount}%</td>
-                              <td className="py-3 text-right font-mono font-bold text-slate-900">${item.total}</td>
+                              <td className="py-3 text-right font-mono font-bold text-slate-900">₹{Number(item.total || 0).toLocaleString('en-IN')}</td>
                             </tr>
                             <tr>
                               <td colSpan={5} className="pb-3 pt-0">
@@ -689,13 +996,13 @@ const CustomerPortalPage = () => {
                   <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
                     <span className="text-xs font-bold text-slate-700 uppercase">Total Proposed Investment:</span>
                     <span className="text-xl font-extrabold text-[#a459a8]">
-                      ${quoteData.lineItems.reduce((acc, curr) => acc + curr.total, 0).toFixed(2)}
+                      ₹{(quoteData?.lineItems || []).reduce((acc, curr) => acc + (curr.total || 0), 0).toLocaleString('en-IN')}
                     </span>
                   </div>
                 </div>
 
                 {/* Negotiation / Status History */}
-                {quoteData.negotiationHistory && quoteData.negotiationHistory.length > 0 && (
+                {quoteData?.negotiationHistory && quoteData.negotiationHistory.length > 0 && (
                   <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Negotiation & Activity History</h4>
                     <div className="space-y-2">

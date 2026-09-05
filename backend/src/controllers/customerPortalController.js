@@ -42,14 +42,72 @@ const customerPortalController = {
       // Check if quotation is expired
       const isExpired = quote.expiresAt && new Date() > new Date(quote.expiresAt);
 
+      const lineItems = (quote.items || []).map((it) => ({
+        id: it.id,
+        productId: it.productId,
+        name: it.product?.name || `Product #${it.productId}`,
+        qty: it.quantity,
+        quantity: it.quantity,
+        price: it.unitPrice,
+        unitPrice: it.unitPrice,
+        discount: it.discount || 0,
+        total: it.totalPrice || (it.quantity * it.unitPrice)
+      }));
+
+      const negotiationHistory = (quote.negotiations || []).map((n) => ({
+        id: n.id,
+        actor: n.actorRole || 'Customer',
+        actorRole: n.actorRole || 'Customer',
+        timestamp: n.createdAt,
+        message: n.comment || `Counter-offer: ₹${n.requestedPrice?.toLocaleString('en-IN')}`
+      }));
+
+      const firstItem = quote.items?.[0] || {};
+      const currentDiscount = firstItem.discount || 0;
+
       res.status(200).json({
         success: true,
         data: {
           ...quote,
+          quotationId: quote.quoteNumber || quote.id,
+          customerName: quote.customer?.companyName || quote.customer?.name || 'Valued Customer',
+          contactPerson: quote.customer?.contactPerson || quote.customer?.name || 'Representative',
+          quoteValidity: quote.expiresAt ? new Date(quote.expiresAt).toLocaleDateString('en-IN') : '30 Days',
+          currentDiscount,
+          lineItems,
+          items: quote.items || [],
           isExpired,
-          negotiationHistory: quote.negotiations || []
+          negotiationHistory
         }
       });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * GET /api/customer-portal/products
+   * Customer product catalog browsing
+   */
+  getCatalog: async (req, res, next) => {
+    try {
+      const { search, category } = req.query;
+      const where = {};
+      if (category && category !== 'All') {
+        where.category = category;
+      }
+      if (search) {
+        where.OR = [
+          { name: { contains: search, mode: 'insensitive' } },
+          { sku: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } }
+        ];
+      }
+      const products = await prisma.product.findMany({
+        where,
+        orderBy: { name: 'asc' }
+      });
+      res.status(200).json({ success: true, count: products.length, data: products });
     } catch (error) {
       next(error);
     }
@@ -61,10 +119,21 @@ const customerPortalController = {
    */
   createRequest: async (req, res, next) => {
     try {
-      const { customerId, items = [], notes } = req.body;
+      let { customerId, items = [], notes, productId, quantity, message } = req.body;
+
+      // Handle single item shorthand { productId, quantity, message }
+      if (productId && (!items || items.length === 0)) {
+        items = [{ productId, quantity: quantity || 1, notes: message }];
+      }
 
       // 1. Resolve customer
       let resolvedCustomerId = customerId;
+      if (!resolvedCustomerId && req.query.token) {
+        const quote = await prisma.quotation.findFirst({
+          where: { OR: [{ portalToken: req.query.token }, { id: req.query.token }, { quoteNumber: req.query.token }] }
+        });
+        resolvedCustomerId = quote?.customerId;
+      }
       if (!resolvedCustomerId) {
         const defaultCustomer = await prisma.customer.findFirst();
         resolvedCustomerId = defaultCustomer?.id;
@@ -141,7 +210,7 @@ const customerPortalController = {
           customerId: resolvedCustomerId,
           status: 'PENDING',
           totalAmount,
-          notes: notes || null,
+          notes: notes || message || null,
           items: {
             create: validatedItems
           }
@@ -176,19 +245,29 @@ const customerPortalController = {
 
   /**
    * GET /api/customer-portal/requests
-   * List customer's requests and negotiations ("My Requests" - Test 6)
+   * List customer's requests, negotiations, and orders ("My Requests" - Test 6)
    */
   getRequests: async (req, res, next) => {
     try {
-      const { customerId } = req.query;
-      const filter = customerId ? { customerId } : {};
+      const { customerId, token } = req.query;
+      let resolvedCustomerId = customerId;
 
-      const [productRequests, negotiations] = await Promise.all([
+      if (!resolvedCustomerId && token) {
+        const quote = await prisma.quotation.findFirst({
+          where: { OR: [{ portalToken: token }, { id: token }, { quoteNumber: token }] }
+        });
+        resolvedCustomerId = quote?.customerId;
+      }
+
+      const filter = resolvedCustomerId ? { customerId: resolvedCustomerId } : {};
+
+      const [productRequests, negotiations, orders] = await Promise.all([
         prisma.productRequest.findMany({
           where: filter,
           include: {
             customer: true,
-            items: { include: { product: true } }
+            items: { include: { product: true } },
+            quotations: true
           },
           orderBy: { createdAt: 'desc' }
         }),
@@ -200,15 +279,90 @@ const customerPortalController = {
             product: true
           },
           orderBy: { createdAt: 'desc' }
+        }),
+        prisma.order.findMany({
+          where: filter,
+          include: {
+            customer: true,
+            items: { include: { product: true } },
+            fulfillments: { include: { warehouse: true } }
+          },
+          orderBy: { createdAt: 'desc' }
         })
       ]);
+
+      // Flatten requests for seamless frontend table rendering
+      const formattedRequests = productRequests.map((req) => {
+        const firstItem = req.items?.[0] || {};
+        const linkedQuote = req.quotations && req.quotations.length > 0 ? req.quotations[0] : null;
+        const totalQty = req.items.reduce((sum, it) => sum + it.quantity, 0);
+        const calculatedTotal = req.items.reduce((sum, it) => sum + (it.quantity * (it.targetPrice || it.product?.basePrice || 0)), 0);
+        const totalAmount = req.totalAmount || calculatedTotal;
+
+        return {
+          id: req.requestNumber || req.id,
+          requestId: req.id,
+          requestNumber: req.requestNumber,
+          productName: firstItem.product?.name || 'Requested Product Bundle',
+          category: firstItem.product?.category || 'General',
+          unitPrice: firstItem.targetPrice || firstItem.product?.basePrice || 0,
+          quantity: totalQty,
+          totalAmount,
+          estimatedTotal: totalAmount,
+          status: req.status,
+          createdAt: req.createdAt,
+          salesResponse: req.notes || null,
+          reviewedBy: 'Sales Representative',
+          items: req.items,
+          quotations: req.quotations || [],
+          linkedQuotation: linkedQuote ? {
+            id: linkedQuote.id,
+            quoteNumber: linkedQuote.quoteNumber,
+            totalAmount: linkedQuote.totalAmount,
+            status: linkedQuote.status,
+            portalToken: linkedQuote.portalToken
+          } : null
+        };
+      });
+
+      const formattedNegotiations = negotiations.map((neg) => ({
+        id: `NEG-${neg.id.slice(-6)}`,
+        negotiationId: neg.id,
+        quoteNumber: neg.quotation?.quoteNumber || 'Quotation',
+        productName: neg.product?.name || `Quotation Item`,
+        category: 'Counter Offer',
+        originalPrice: neg.originalPrice,
+        requestedPrice: neg.requestedPrice,
+        discountPercent: neg.discountPercent,
+        riskScore: neg.riskScore,
+        riskLevel: neg.riskLevel,
+        status: neg.status,
+        message: neg.message,
+        createdAt: neg.createdAt
+      }));
+
+      const formattedOrders = orders.map((ord) => ({
+        id: ord.orderNumber,
+        orderId: ord.id,
+        orderNumber: ord.orderNumber,
+        status: ord.status,
+        totalAmount: ord.totalAmount,
+        totalFulfilled: ord.totalFulfilled,
+        totalBackordered: ord.totalBackordered,
+        createdAt: ord.createdAt,
+        itemsCount: ord.items?.length || 0,
+        fulfillmentCount: ord.fulfillments?.length || 0
+      }));
 
       res.status(200).json({
         success: true,
         data: {
-          productRequests,
-          negotiations,
-          total: productRequests.length + negotiations.length
+          productRequests: formattedRequests,
+          rawProductRequests: productRequests,
+          negotiations: formattedNegotiations,
+          rawNegotiations: negotiations,
+          orders: formattedOrders,
+          total: formattedRequests.length + formattedNegotiations.length + formattedOrders.length
         }
       });
     } catch (error) {
@@ -223,15 +377,8 @@ const customerPortalController = {
   negotiateQuote: async (req, res, next) => {
     try {
       const { token } = req.params;
-      const { quotationItemId, productId, requestedPrice, message } = req.body;
-
-      if (!requestedPrice || Number(requestedPrice) <= 0) {
-        return res.status(400).json({ success: false, message: 'A valid positive requested price is required.' });
-      }
-
-      if (!message || message.trim().length === 0) {
-        return res.status(400).json({ success: false, message: 'A negotiation justification message is required.' });
-      }
+      const { quotationItemId, productId, counterDiscount, comment } = req.body;
+      let { requestedPrice, message } = req.body;
 
       // 1. Find Quotation
       const quote = await prisma.quotation.findFirst({
@@ -276,6 +423,24 @@ const customerPortalController = {
       }
 
       const originalPrice = targetItem.unitPrice;
+
+      // Auto-compute requestedPrice if counterDiscount is passed
+      if (!requestedPrice && counterDiscount !== undefined && Number(counterDiscount) >= 0) {
+        const discNum = Number(counterDiscount);
+        requestedPrice = Math.round(originalPrice * (1 - discNum / 100));
+      }
+
+      if (!requestedPrice || Number(requestedPrice) <= 0) {
+        return res.status(400).json({ success: false, message: 'A valid positive requested price or discount percentage is required.' });
+      }
+
+      if (!message && comment) {
+        message = comment;
+      }
+      if (!message || message.trim().length === 0) {
+        message = `Customer submitted counter-offer of ₹${Number(requestedPrice).toLocaleString('en-IN')}.`;
+      }
+
       const reqPriceNum = Number(requestedPrice);
 
       // 3. Compute Risk on Backend (Test 7)

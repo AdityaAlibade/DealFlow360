@@ -27,6 +27,7 @@ const customerPortalRoutes = require('./routes/customerPortalRoutes');
 const dealHealthRoutes = require('./routes/dealHealthRoutes');
 const reportsRoutes = require('./routes/reportsRoutes');
 const productRoutes = require('./routes/productRoutes');
+const orderRequestRoutes = require('./routes/orderRequestRoutes');
 
 const app = express();
 
@@ -52,6 +53,7 @@ app.get('/', (req, res) => {
       health: '/health',
       auth: '/api/auth',
       dashboard: '/api/dashboard',
+      orderRequests: '/api/order-requests',
       quotations: '/api/quotations',
       orders: '/api/orders',
       approvals: '/api/approvals',
@@ -72,6 +74,7 @@ app.get('/', (req, res) => {
 // Mount API Modules
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/order-requests', orderRequestRoutes);
 app.use('/api/quotations', quotationRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/approvals', approvalRoutes);

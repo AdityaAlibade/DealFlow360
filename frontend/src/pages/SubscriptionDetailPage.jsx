@@ -1,23 +1,71 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, XCircle } from 'lucide-react';
+import { ArrowLeft, Edit, XCircle, PlayCircle, PauseCircle, CheckCircle2, AlertCircle } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
 import Card from '../components/common/Card';
+import Badge from '../components/common/Badge';
 import Button from '../components/common/Button';
+import subscriptionAPI from '../api/subscriptionAPI';
 
 const SubscriptionDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [subscription, setSubscription] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState(null);
 
-  const oneTimeLines = [
-    { product: 'Setup & Onboarding Consultation', qty: 1, amount: '₹5,000.00' },
-    { product: 'Hardware Appliance Gateway', qty: 2, amount: '₹14,000.00' }
-  ];
+  const fetchSubscription = async () => {
+    try {
+      setLoading(true);
+      const res = await subscriptionAPI.getById(id);
+      const subData = res?.data || res;
+      setSubscription(subData);
+    } catch (err) {
+      console.warn('Failed to load subscription detail from API:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const recurringLines = [
-    { plan: 'Care Plan 2yr (Pro Support)', cycle: 'Monthly', nextBill: 'Sep 15, 2026', amount: '₹1,200.00 / month' },
-    { plan: 'Cloud Storage 5TB Add-on', cycle: 'Monthly', nextBill: 'Sep 15, 2026', amount: '₹350.00 / month' }
-  ];
+  useEffect(() => {
+    if (id) {
+      fetchSubscription();
+    }
+  }, [id]);
+
+  const handlePause = async () => {
+    try {
+      await subscriptionAPI.pause(id);
+      setToast({ type: 'success', text: 'Subscription paused successfully.' });
+      fetchSubscription();
+    } catch (err) {
+      setToast({ type: 'danger', text: err.message || 'Failed to pause subscription' });
+    }
+  };
+
+  const handleResume = async () => {
+    try {
+      await subscriptionAPI.resume(id);
+      setToast({ type: 'success', text: 'Subscription resumed successfully.' });
+      fetchSubscription();
+    } catch (err) {
+      setToast({ type: 'danger', text: err.message || 'Failed to resume subscription' });
+    }
+  };
+
+  const handleCancel = async () => {
+    try {
+      await subscriptionAPI.cancel(id);
+      setToast({ type: 'info', text: 'Subscription cancelled.' });
+      fetchSubscription();
+    } catch (err) {
+      setToast({ type: 'danger', text: err.message || 'Failed to cancel subscription' });
+    }
+  };
+
+  const customer = subscription?.customer || subscription?.order?.customer || {};
+  const status = (subscription?.status || 'ACTIVE').toUpperCase();
+  const isPaused = status === 'PAUSED';
 
   return (
     <MainLayout>
@@ -32,67 +80,67 @@ const SubscriptionDetailPage = () => {
           </button>
           <div>
             <h1 className="text-xl font-extrabold text-slate-900">
-              Billing Detail: Tata Consultancy Services (TCS) - <span className="text-[#a459a8]">Enterprise CPQ Platform</span>
+              Subscription Contract: <span className="text-[#a459a8]">{subscription?.planName || id}</span>
             </h1>
-            <p className="text-xs text-slate-500">Contract Ref: {id || 'SUB-2026-881'} &bull; Auto-renewal: Active</p>
+            <p className="text-xs text-slate-500">
+              Customer: {customer.companyName || customer.name || 'Account'} &bull; Status: {status}
+            </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2.5">
-          <Button variant="secondary" size="sm" icon={Edit}>
-            Modify Subscription
-          </Button>
-          <Button variant="danger" size="sm" icon={XCircle}>
-            Cancel Subscription
+          {isPaused ? (
+            <Button variant="primary" size="sm" icon={PlayCircle} onClick={handleResume}>
+              Resume Billing
+            </Button>
+          ) : (
+            <Button variant="secondary" size="sm" icon={PauseCircle} onClick={handlePause}>
+              Pause Billing
+            </Button>
+          )}
+          <Button variant="danger" size="sm" icon={XCircle} onClick={handleCancel}>
+            Cancel Contract
           </Button>
         </div>
       </div>
 
-      {/* One-Time Lines Table */}
-      <Card title="One-Time Upfront Charges">
-        <table className="min-w-full divide-y divide-slate-200 text-xs">
-          <thead>
-            <tr className="bg-slate-50 text-slate-600 font-semibold uppercase">
-              <th className="px-4 py-2.5 text-left">Product / Service</th>
-              <th className="px-4 py-2.5 text-center">Qty</th>
-              <th className="px-4 py-2.5 text-right">Total Amount</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {oneTimeLines.map((line, idx) => (
-              <tr key={idx}>
-                <td className="px-4 py-3 font-medium text-slate-800">{line.product}</td>
-                <td className="px-4 py-3 text-center font-mono">{line.qty}</td>
-                <td className="px-4 py-3 text-right font-mono font-bold text-slate-900">{line.amount}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
+      {toast && (
+        <div className={`p-3.5 rounded-xl border text-xs font-semibold flex items-center gap-2 ${
+          toast.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'
+        }`}>
+          {toast.type === 'success' ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <AlertCircle className="w-4 h-4 text-red-600" />}
+          <span>{toast.text}</span>
+        </div>
+      )}
 
-      {/* Recurring Lines Table */}
-      <Card title="Recurring Subscription Schedule">
-        <table className="min-w-full divide-y divide-slate-200 text-xs">
-          <thead>
-            <tr className="bg-slate-50 text-slate-600 font-semibold uppercase">
-              <th className="px-4 py-2.5 text-left">Plan / Feature</th>
-              <th className="px-4 py-2.5 text-center">Billing Cycle</th>
-              <th className="px-4 py-2.5 text-center">Next Invoice Date</th>
-              <th className="px-4 py-2.5 text-right">Recurring Amount</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {recurringLines.map((line, idx) => (
-              <tr key={idx}>
-                <td className="px-4 py-3 font-semibold text-slate-800">{line.plan}</td>
-                <td className="px-4 py-3 text-center font-mono">{line.cycle}</td>
-                <td className="px-4 py-3 text-center font-mono text-slate-500">{line.nextBill}</td>
-                <td className="px-4 py-3 text-right font-mono font-bold text-[#a459a8]">{line.amount}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
+      {loading ? (
+        <div className="py-12 text-center text-xs text-slate-400">Loading subscription details from database...</div>
+      ) : (
+        <div className="space-y-6">
+          <Card title="Subscription Contract Details">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+              <div>
+                <span className="text-slate-400 uppercase text-[10px] font-bold">Plan / Tier</span>
+                <p className="font-bold text-slate-900 text-sm mt-1">{subscription?.planName || 'Enterprise Tier'}</p>
+              </div>
+              <div>
+                <span className="text-slate-400 uppercase text-[10px] font-bold">Billing Cycle</span>
+                <p className="font-semibold text-slate-800 mt-1">{subscription?.billingCycle || 'Monthly'}</p>
+              </div>
+              <div>
+                <span className="text-slate-400 uppercase text-[10px] font-bold">Recurring Amount</span>
+                <p className="font-bold text-[#a459a8] text-base mt-1">₹{Number(subscription?.recurringAmount || 0).toLocaleString('en-IN')}</p>
+              </div>
+              <div>
+                <span className="text-slate-400 uppercase text-[10px] font-bold">Next Invoice Date</span>
+                <p className="font-mono text-slate-800 mt-1">
+                  {subscription?.nextBillingDate ? new Date(subscription.nextBillingDate).toLocaleDateString('en-IN') : 'Scheduled'}
+                </p>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
     </MainLayout>
   );
 };

@@ -14,13 +14,15 @@ import {
   MessageSquare,
   Sparkles,
   Check,
-  X
+  X,
+  Inbox
 } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
 import Card from '../components/common/Card';
 import Badge from '../components/common/Badge';
 import Button from '../components/common/Button';
 import productAPI from '../api/productAPI';
+import quotationAPI from '../api/quotationAPI';
 import { useAuth } from '../contexts/AuthContext';
 
 const QuotationDetailPage = () => {
@@ -28,23 +30,40 @@ const QuotationDetailPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [quotation] = useState(() => {
-    try {
-      const saved = localStorage.getItem('dealflow360_quotations');
-      const list = saved ? JSON.parse(saved) : [];
-      return list.find((q) => q.id === id) || null;
-    } catch {
-      return null;
-    }
-  });
-
-  const [products, setProducts] = useState(() => quotation?.items || []);
+  const [quotation, setQuotation] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [availableUpsells, setAvailableUpsells] = useState([]);
 
   const [customerRequests, setCustomerRequests] = useState([]);
   const [rejectModalReq, setRejectModalReq] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
   const [acceptDiscount, setAcceptDiscount] = useState(10);
   const [feedbackToast, setFeedbackToast] = useState(null);
+
+  const fetchQuotationData = async () => {
+    try {
+      if (!id) return;
+      const res = await quotationAPI.getById(id);
+      if (res && (res.data || res.id)) {
+        const qData = res.data || res;
+        setQuotation(qData);
+        if (qData.items && qData.items.length > 0) {
+          setProducts(qData.items.map((it, idx) => ({
+            id: it.id || idx + 1,
+            name: it.product?.name || it.name || 'Product',
+            qty: it.quantity || it.qty || 1,
+            price: Number(it.unitPrice || it.price || 0),
+            discount: Number(it.discountPct || it.discount || 0),
+            limit: 15,
+            status: (it.discountPct || it.discount) > 15 ? 'OVER' : 'OK',
+            statusType: (it.discountPct || it.discount) > 15 ? 'danger' : 'success'
+          })));
+        }
+      }
+    } catch (err) {
+      console.warn('Could not fetch live quotation data from API:', err);
+    }
+  };
 
   const fetchCustomerRequests = async () => {
     try {
@@ -57,14 +76,26 @@ const QuotationDetailPage = () => {
     }
   };
 
+  const fetchCatalogUpsells = async () => {
+    try {
+      const res = await productAPI.getAll();
+      const catalog = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      setAvailableUpsells(catalog.slice(0, 4));
+    } catch (err) {
+      console.warn('Failed to load upsell catalog', err);
+    }
+  };
+
   useEffect(() => {
+    fetchQuotationData();
     fetchCustomerRequests();
-  }, []);
+    fetchCatalogUpsells();
+  }, [id]);
 
   const handleAcceptCustomerRequest = async (req) => {
     try {
       const res = await productAPI.acceptCustomerRequest(req.id, {
-        salesRepName: user?.name || 'Alex Rivera',
+        salesRepName: user?.name || quotation?.salesRep?.fullName || 'Sales Representative',
         salesResponse: `Approved and added to quotation proposal at ${acceptDiscount}% standard discount.`,
         discountPct: acceptDiscount
       });
@@ -101,7 +132,7 @@ const QuotationDetailPage = () => {
     if (!rejectModalReq) return;
     try {
       await productAPI.rejectCustomerRequest(rejectModalReq.id, {
-        salesRepName: user?.name || 'Alex Rivera',
+        salesRepName: user?.name || quotation?.salesRep?.fullName || 'Sales Representative',
         reason: rejectReason || 'Product currently unavailable for this quotation package.'
       });
 
@@ -121,36 +152,12 @@ const QuotationDetailPage = () => {
     }
   };
 
-  const upsellItems = [
-    {
-      id: 'up-1',
-      name: 'Docking Station Thunderbolt 4 Dual 4K',
-      price: 18500,
-      margin: 42,
-      badge: 'PROMO'
-    },
-    {
-      id: 'up-2',
-      name: 'Enterprise Cloud Storage Pro (5TB)',
-      price: 85000,
-      margin: 85,
-      badge: 'POPULAR'
-    },
-    {
-      id: 'up-3',
-      name: 'Annual Care Plan Gold SLA (24/7)',
-      price: 25000,
-      margin: 60,
-      badge: 'HIGH MARGIN'
-    }
-  ];
-
   const handleAddUpsell = (item) => {
     const newItem = {
       id: Date.now(),
       name: item.name,
       qty: 1,
-      price: item.price,
+      price: Number(item.price || item.basePrice || 0),
       discount: 5,
       limit: 15,
       status: 'OK',
@@ -223,6 +230,36 @@ const QuotationDetailPage = () => {
           </Button>
         </div>
       </div>
+
+      {/* Created From Order Request Banner */}
+      {(quotation?.productRequest || quotation?.productRequestId) && (
+        <div className="p-4 bg-purple-50/90 border-2 border-purple-300/80 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-[#a459a8] text-white rounded-xl shadow-sm">
+              <Inbox className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black uppercase tracking-wider text-purple-900">
+                  Created From Order Request:
+                </span>
+                <span className="text-xs font-black text-purple-700 bg-purple-100 px-2.5 py-0.5 rounded-md">
+                  #{quotation.productRequest?.requestNumber || quotation.productRequestId}
+                </span>
+              </div>
+              <p className="text-[11px] text-purple-700 mt-0.5">
+                This commercial proposal is bound to customer requirement #{quotation.productRequest?.requestNumber || quotation.productRequestId}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate(`/order-requests/${quotation.productRequestId || quotation.productRequest?.id}`)}
+            className="text-xs font-bold text-purple-700 hover:text-purple-900 flex items-center gap-1 hover:underline"
+          >
+            View Original Order Request <ExternalLink className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {feedbackToast && (
         <div className={`p-3.5 rounded-xl border text-xs font-semibold flex items-center justify-between shadow-sm ${
@@ -451,35 +488,39 @@ const QuotationDetailPage = () => {
         <div className="space-y-6">
           <Card
             title="Recommended Add-ons"
-            subtitle="AI upsell intelligence for deal margin expansion"
+            subtitle="Catalog add-ons available for deal expansion"
           >
             <div className="space-y-3">
-              {upsellItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="p-3 bg-slate-50 hover:bg-purple-50/40 border border-slate-200 rounded-xl transition-all"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <Badge variant="primary" className="text-[9px] py-0">{item.badge}</Badge>
-                      <h4 className="text-xs font-bold text-slate-800 mt-1">{item.name}</h4>
+              {availableUpsells.length === 0 ? (
+                <p className="text-xs text-slate-400 py-4 text-center">No catalog add-ons available.</p>
+              ) : (
+                availableUpsells.map((item) => (
+                  <div
+                    key={item.id}
+                    className="p-3 bg-slate-50 hover:bg-purple-50/40 border border-slate-200 rounded-xl transition-all"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <Badge variant="primary" className="text-[9px] py-0">{item.category || 'CATALOG'}</Badge>
+                        <h4 className="text-xs font-bold text-slate-800 mt-1">{item.name}</h4>
+                      </div>
+                      <span className="text-xs font-bold text-slate-900">₹{Number(item.price || item.basePrice || 0).toLocaleString('en-IN')}</span>
                     </div>
-                    <span className="text-xs font-bold text-slate-900">₹{Number(item.price).toLocaleString('en-IN')}</span>
+                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-200/60 text-[11px]">
+                      <span className="text-emerald-600 font-semibold">SKU: {item.sku || 'N/A'}</span>
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        icon={Plus}
+                        onClick={() => handleAddUpsell(item)}
+                        className="py-1 px-2 text-[11px] bg-[#a459a8]"
+                      >
+                        Add
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-200/60 text-[11px]">
-                    <span className="text-emerald-600 font-semibold">+{item.margin}% margin uplift</span>
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      icon={Plus}
-                      onClick={() => handleAddUpsell(item)}
-                      className="py-1 px-2 text-[11px] bg-[#a459a8]"
-                    >
-                      Add
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </Card>
         </div>
@@ -512,29 +553,34 @@ const QuotationDetailPage = () => {
           <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
             <div className="flex justify-between items-center text-xs">
               <span className="font-semibold text-slate-700">Calculated Deal Margin:</span>
-              <span className="font-bold text-emerald-600 text-sm">34.2%</span>
+              <span className="font-bold text-emerald-600 text-sm">
+                {subtotal > 0 ? `${Math.max(0, Math.round(((subtotal - totalDiscount) / subtotal) * 100))}%` : '0%'}
+              </span>
             </div>
             <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
-              <div className="bg-emerald-500 h-full rounded-full" style={{ width: '68%' }} />
+              <div
+                className="bg-emerald-500 h-full rounded-full"
+                style={{ width: `${subtotal > 0 ? Math.min(100, Math.max(0, Math.round(((subtotal - totalDiscount) / subtotal) * 100))) : 0}%` }}
+              />
             </div>
-            <p className="text-[11px] text-slate-500">Target threshold is 25%. This quote is within healthy gross margin parameters.</p>
+            <p className="text-[11px] text-slate-500">Target threshold is 25%. This quote is computed from live line item discount margins.</p>
           </div>
 
           {/* Right: Risk & Status */}
           <div className="p-4 bg-purple-50/50 border border-purple-200 rounded-xl flex flex-col justify-between">
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#a459a8]">Approval Governance</span>
-              <p className="text-xs font-semibold text-slate-800 mt-1">Status: Open Negotiation</p>
-              <p className="text-[11px] text-slate-500 mt-0.5">Customer product additions automatically synced to proposal.</p>
+              <p className="text-xs font-semibold text-slate-800 mt-1">Status: {quotation?.status || 'Draft'}</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">Commercial discount governance governed by backend policy.</p>
             </div>
             <Button
               variant="primary"
               size="sm"
               icon={Send}
-              onClick={() => navigate('/approvals/Q-1042')}
+              onClick={() => navigate('/approvals')}
               className="mt-3 w-full bg-[#a459a8]"
             >
-              Proceed to Approval Review
+              View Approvals
             </Button>
           </div>
         </div>

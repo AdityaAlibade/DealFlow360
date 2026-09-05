@@ -2,28 +2,35 @@ import React from 'react';
 import Table from '../common/Table';
 import Badge from '../common/Badge';
 
-const InvoiceList = () => {
-  // TODO: Fetch invoices from invoiceAPI.getAll
+const InvoiceList = ({ data = [], onRowClick }) => {
   const columns = [
-    { header: 'Invoice #', accessor: 'id' },
-    { header: 'Customer', accessor: 'customer' },
-    { header: 'Due Date', accessor: 'dueDate' },
-    { header: 'Amount', accessor: 'amount' },
+    { header: 'Invoice #', accessor: 'invoiceNumber', render: (r) => <span className="font-mono font-bold text-[#a459a8]">{r.invoiceNumber || r.id}</span> },
+    { header: 'Customer', accessor: 'customer', render: (r) => <span className="font-semibold text-slate-800">{r.customer?.name || r.customerName || 'Customer Account'}</span> },
+    {
+      header: 'Due Date',
+      accessor: 'dueDate',
+      render: (r) => <span className="text-slate-500 text-xs">{r.dueDate ? new Date(r.dueDate).toLocaleDateString('en-IN') : 'Net 30'}</span>
+    },
+    { header: 'Amount', accessor: 'totalAmount', render: (r) => <span className="font-mono font-bold text-slate-900">₹{Number(r.totalAmount || 0).toLocaleString('en-IN')}</span> },
     {
       header: 'Status',
       accessor: 'status',
-      render: (row) => <Badge variant={row.statusVariant}>{row.status}</Badge>
+      render: (row) => {
+        const s = String(row.status || '').toUpperCase();
+        const variant = s === 'PAID' ? 'success' : s === 'PARTIALLY_PAID' ? 'warning' : 'danger';
+        return <Badge variant={variant} dot>{row.status || 'UNPAID'}</Badge>;
+      }
     }
   ];
 
-  const dummyData = [
-    { id: 'INV-2026-101', customer: 'Tata Consultancy Services (TCS)', dueDate: '2026-09-15', amount: '₹10,03,000', status: 'Paid', statusVariant: 'success' },
-    { id: 'INV-2026-102', customer: 'Infosys Limited', dueDate: '2026-09-20', amount: '₹11,50,500', status: 'Partially Paid', statusVariant: 'warning' },
-    { id: 'INV-2026-103', customer: 'Reliance Digital Enterprises', dueDate: '2026-09-25', amount: '₹6,60,800', status: 'Paid', statusVariant: 'success' },
-    { id: 'INV-2026-104', customer: 'Wipro Infotech Solutions', dueDate: '2026-09-30', amount: '₹10,03,000', status: 'Unpaid', statusVariant: 'danger' }
-  ];
-
-  return <Table columns={columns} data={dummyData} />;
+  return (
+    <Table
+      columns={columns}
+      data={data}
+      emptyMessage="No invoices generated yet."
+      onRowClick={onRowClick}
+    />
+  );
 };
 
 export default InvoiceList;

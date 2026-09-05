@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
 import {
   ArrowLeft,
   Plus,
@@ -14,7 +14,11 @@ import {
   Package,
   Clock,
   ShieldCheck,
-  AlertTriangle
+  AlertTriangle,
+  Inbox,
+  ExternalLink,
+  Info,
+  RefreshCw
 } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
 import Card from '../components/common/Card';
@@ -23,33 +27,32 @@ import Button from '../components/common/Button';
 import Input from '../components/common/Input';
 import Select from '../components/common/Select';
 import quotationAPI from '../api/quotationAPI';
-
-// Available customer catalog based on DealFlow360 data model
-const CUSTOMERS = [
-  { id: 'CUST-001', name: 'Tata Consultancy Services (TCS)', tier: 'GOLD', email: 'procurement@tcs.com', maxDiscount: 20 },
-  { id: 'CUST-002', name: 'Infosys Limited', tier: 'SILVER', email: 'procurement@infosys.com', maxDiscount: 15 },
-  { id: 'CUST-003', name: 'Reliance Digital Enterprises', tier: 'BRONZE', email: 'purchasing@reliancedigital.in', maxDiscount: 10 },
-  { id: 'CUST-004', name: 'Wipro Infotech Solutions', tier: 'GOLD', email: 'supply@wipro.com', maxDiscount: 20 },
-  { id: 'CUST-005', name: 'HDFC Bank Commercial Ops', tier: 'SILVER', email: 'finance.procure@hdfcbank.com', maxDiscount: 15 },
-  { id: 'CUST-006', name: 'Tech Mahindra Global', tier: 'SILVER', email: 'purchasing@techmahindra.com', maxDiscount: 15 }
-];
-
-// Available product catalog based on DealFlow360 data model
-const PRODUCTS = [
-  { id: 'PRD-101', sku: 'HW-LTP-14', name: 'Enterprise Laptop Pro 14"', category: 'Hardware', basePrice: 150000, standardCost: 110000, taxRate: 18, limit: 15 },
-  { id: 'PRD-102', sku: 'SV-OSS-01', name: 'Onsite Setup & Deployment Service', category: 'Services', basePrice: 45000, standardCost: 20000, taxRate: 18, limit: 12 },
-  { id: 'PRD-103', sku: 'HW-DOC-02', name: 'Docking Station Thunderbolt 4', category: 'Hardware', basePrice: 18500, standardCost: 12000, taxRate: 18, limit: 15 },
-  { id: 'PRD-104', sku: 'SB-CP3-03', name: 'DealFlow360 CPQ Platform (Annual)', category: 'Subscription', basePrice: 350000, standardCost: 85000, taxRate: 18, limit: 20 },
-  { id: 'PRD-105', sku: 'HW-SRV-04', name: 'Enterprise UltraHD 4K Monitor 32"', category: 'Hardware', basePrice: 45000, standardCost: 32000, taxRate: 18, limit: 10 },
-  { id: 'PRD-106', sku: 'SV-WAR-02', name: 'Zero-Trust Security & Compliance Suite', category: 'Services', basePrice: 95000, standardCost: 25000, taxRate: 18, limit: 15 }
-];
+import orderRequestAPI from '../api/orderRequestAPI';
+import productAPI from '../api/productAPI';
 
 const NewQuotationPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+
+  const orderRequestId = searchParams.get('orderRequestId') || searchParams.get('requestId') || location.state?.orderRequestId;
+
+  // Real Database Lists
+  const [customers, setCustomers] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [loadingInitial, setLoadingInitial] = useState(true);
+
+  // Order Request State
+  const [sourceOrderRequest, setSourceOrderRequest] = useState(null);
+  const [existingQuoteWarning, setExistingQuoteWarning] = useState(null);
+  const [availableRequests, setAvailableRequests] = useState([]);
+  const [loadingRequest, setLoadingRequest] = useState(false);
 
   // Quote Header State
   const [quoteNumber] = useState(`Q-${Math.floor(1000 + Math.random() * 9000)}`);
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
   const [paymentTerms, setPaymentTerms] = useState('Net 30');
   const [notes, setNotes] = useState('');
   const [validUntil, setValidUntil] = useState(() => {
@@ -59,20 +62,7 @@ const NewQuotationPage = () => {
   });
 
   // Line Items State
-  const [items, setItems] = useState([
-    {
-      id: 1,
-      productId: 'PRD-101',
-      name: 'Laptop Pro 14',
-      sku: 'HW-LTP-14',
-      qty: 2,
-      price: 1000,
-      standardCost: 700,
-      discount: 10,
-      allowedLimit: 15,
-      taxRate: 18
-    }
-  ]);
+  const [items, setItems] = useState([]);
 
   // Form handling & UX state
   const [errors, setErrors] = useState({});
@@ -80,8 +70,133 @@ const NewQuotationPage = () => {
   const [submitSuccess, setSubmitSuccess] = useState('');
   const [submitError, setSubmitError] = useState('');
 
-  // Selected customer object
-  const selectedCustomer = CUSTOMERS.find((c) => c.id === selectedCustomerId);
+  // Selected customer object from real DB list
+  const selectedCustomer = customers.find((c) => c.id === selectedCustomerId);
+
+  // 1. Fetch Real Customers & Real Products from PostgreSQL
+  useEffect(() => {
+    const loadMasterData = async () => {
+      try {
+        setLoadingInitial(true);
+        const [custRes, prodRes] = await Promise.all([
+          quotationAPI.getCustomers(),
+          productAPI.getAll()
+        ]);
+
+        let loadedCustomers = [];
+        let loadedProducts = [];
+
+        if (custRes && custRes.data) {
+          loadedCustomers = custRes.data;
+          setCustomers(custRes.data);
+        }
+
+        if (prodRes && prodRes.data) {
+          loadedProducts = prodRes.data;
+          setProducts(prodRes.data);
+        }
+
+        // Set default item if none and not from request
+        if (!orderRequestId && loadedProducts.length > 0 && items.length === 0) {
+          const first = loadedProducts[0];
+          setItems([
+            {
+              id: 1,
+              productId: first.id,
+              name: first.name,
+              sku: first.sku,
+              qty: 1,
+              price: Number(first.basePrice || 0),
+              standardCost: Number(first.standardCost || 0),
+              discount: 0,
+              allowedLimit: 15,
+              taxRate: 18
+            }
+          ]);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch real customers or products:', err);
+      } finally {
+        setLoadingInitial(false);
+      }
+    };
+
+    loadMasterData();
+  }, [orderRequestId]);
+
+  // 2. Fetch Available Order Requests if no request is selected
+  useEffect(() => {
+    const loadAvailableRequests = async () => {
+      try {
+        const res = await orderRequestAPI.getAll({ status: 'PENDING,UNDER_REVIEW' });
+        if (res && res.data) {
+          setAvailableRequests(res.data);
+        }
+      } catch (err) {
+        console.error('Failed to load active order requests:', err);
+      }
+    };
+    if (!orderRequestId) {
+      loadAvailableRequests();
+    }
+  }, [orderRequestId]);
+
+  // 3. Fetch Order Request Details if orderRequestId is supplied
+  useEffect(() => {
+    if (!orderRequestId) return;
+
+    const loadOrderRequest = async () => {
+      try {
+        setLoadingRequest(true);
+        const res = await orderRequestAPI.getById(orderRequestId);
+        if (res && res.success && res.data) {
+          const req = res.data;
+          setSourceOrderRequest(req);
+
+          // Check if active quote already exists
+          if (req.quotations && req.quotations.length > 0) {
+            setExistingQuoteWarning(req.quotations[0]);
+          }
+
+          // Pre-fill customer
+          if (req.customerId) {
+            setSelectedCustomerId(req.customerId);
+          } else if (req.customer?.id) {
+            setSelectedCustomerId(req.customer.id);
+          }
+          setCustomerName(req.customer?.name || req.customerName || 'Customer Account');
+          setCustomerEmail(req.customer?.email || req.customerEmail || '');
+          setNotes(`Created from Order Request #${req.requestNumber || req.id}. ${req.notes || ''}`);
+
+          // Pre-fill line items from request
+          if (req.items && req.items.length > 0) {
+            const mappedItems = req.items.map((item, index) => {
+              return {
+                id: index + 1,
+                productId: item.productId || item.product?.id,
+                name: item.product?.name || item.productName || 'Product',
+                sku: item.product?.sku || 'SKU',
+                qty: item.quantity || 1,
+                price: Number(item.targetPrice || item.product?.basePrice || 0),
+                standardCost: Number(item.product?.standardCost || 0),
+                discount: 0,
+                allowedLimit: 15,
+                taxRate: 18
+              };
+            });
+            setItems(mappedItems);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load order request for quotation:', err);
+        setSubmitError('Could not load original Order Request details.');
+      } finally {
+        setLoadingRequest(false);
+      }
+    };
+
+    loadOrderRequest();
+  }, [orderRequestId]);
 
   // Line item change handlers
   const handleItemChange = (index, field, value) => {
@@ -89,15 +204,15 @@ const NewQuotationPage = () => {
     const item = { ...updated[index] };
 
     if (field === 'productId') {
-      const prod = PRODUCTS.find((p) => p.id === value);
+      const prod = products.find((p) => p.id === value);
       if (prod) {
         item.productId = prod.id;
         item.name = prod.name;
         item.sku = prod.sku;
-        item.price = prod.basePrice;
-        item.standardCost = prod.standardCost;
-        item.taxRate = prod.taxRate;
-        item.allowedLimit = selectedCustomer ? Math.min(prod.limit, selectedCustomer.maxDiscount) : prod.limit;
+        item.price = Number(prod.basePrice || 0);
+        item.standardCost = Number(prod.standardCost || 0);
+        item.taxRate = 18;
+        item.allowedLimit = selectedCustomer ? Math.min(15, selectedCustomer.maxDiscount || 15) : 15;
       }
     } else if (field === 'qty') {
       item.qty = Math.max(1, parseInt(value, 10) || 1);
@@ -112,7 +227,7 @@ const NewQuotationPage = () => {
   };
 
   const handleAddItem = () => {
-    const defaultProd = PRODUCTS[0];
+    const defaultProd = products[0] || { id: 'custom', name: 'Custom Product', sku: 'SKU-001', basePrice: 1000, standardCost: 700 };
     const nextId = items.length > 0 ? Math.max(...items.map((i) => i.id)) + 1 : 1;
     setItems([
       ...items,
@@ -122,11 +237,11 @@ const NewQuotationPage = () => {
         name: defaultProd.name,
         sku: defaultProd.sku,
         qty: 1,
-        price: defaultProd.basePrice,
-        standardCost: defaultProd.standardCost,
+        price: Number(defaultProd.basePrice || 0),
+        standardCost: Number(defaultProd.standardCost || 0),
         discount: 0,
-        allowedLimit: selectedCustomer ? Math.min(defaultProd.limit, selectedCustomer.maxDiscount) : defaultProd.limit,
-        taxRate: defaultProd.taxRate
+        allowedLimit: selectedCustomer ? Math.min(15, selectedCustomer.maxDiscount || 15) : 15,
+        taxRate: 18
       }
     ]);
   };
@@ -142,30 +257,30 @@ const NewQuotationPage = () => {
 
   // Calculations
   const calculateLineMetrics = (item) => {
-    const gross = item.qty * item.price;
-    const discountAmount = gross * (item.discount / 100);
+    const gross = (item.qty || 1) * (item.price || 0);
+    const discountAmount = gross * ((item.discount || 0) / 100);
     const net = gross - discountAmount;
-    const tax = net * (item.taxRate / 100);
+    const tax = net * ((item.taxRate || 18) / 100);
     const total = net + tax;
-    const cost = item.qty * item.standardCost;
+    const cost = (item.qty || 1) * (item.standardCost || 0);
     const profit = net - cost;
     const marginPercent = net > 0 ? (profit / net) * 100 : 0;
-    const isOverLimit = item.discount > item.allowedLimit;
+    const isOverLimit = (item.discount || 0) > (item.allowedLimit || 15);
 
     return { gross, discountAmount, net, tax, total, marginPercent, isOverLimit };
   };
 
-  const subtotalGross = items.reduce((acc, it) => acc + it.qty * it.price, 0);
-  const totalDiscountAmount = items.reduce((acc, it) => acc + (it.qty * it.price * (it.discount / 100)), 0);
+  const subtotalGross = items.reduce((acc, it) => acc + (it.qty || 1) * (it.price || 0), 0);
+  const totalDiscountAmount = items.reduce((acc, it) => acc + ((it.qty || 1) * (it.price || 0) * ((it.discount || 0) / 100)), 0);
   const netSubtotal = subtotalGross - totalDiscountAmount;
   const totalTaxAmount = items.reduce((acc, it) => {
-    const net = it.qty * it.price * (1 - it.discount / 100);
-    return acc + net * (it.taxRate / 100);
+    const net = (it.qty || 1) * (it.price || 0) * (1 - (it.discount || 0) / 100);
+    return acc + net * ((it.taxRate || 18) / 100);
   }, 0);
   const grandTotal = netSubtotal + totalTaxAmount;
-  const totalCost = items.reduce((acc, it) => acc + it.qty * it.standardCost, 0);
+  const totalCost = items.reduce((acc, it) => acc + (it.qty || 1) * (it.standardCost || 0), 0);
   const blendedMargin = netSubtotal > 0 ? ((netSubtotal - totalCost) / netSubtotal) * 100 : 0;
-  const anyOverLimit = items.some((it) => it.discount > it.allowedLimit);
+  const anyOverLimit = items.some((it) => (it.discount || 0) > (it.allowedLimit || 15));
 
   // Form Validation
   const validateForm = () => {
@@ -177,7 +292,7 @@ const NewQuotationPage = () => {
       newErrors.items = 'At least one quotation product line is required.';
     }
     items.forEach((it, idx) => {
-      if (it.qty <= 0) {
+      if (!it.qty || it.qty <= 0) {
         newErrors[`qty_${idx}`] = 'Quantity must be > 0';
       }
       if (it.price < 0) {
@@ -203,8 +318,10 @@ const NewQuotationPage = () => {
       setIsSubmitting(true);
       const payload = {
         quoteNumber,
+        productRequestId: sourceOrderRequest?.id || orderRequestId || undefined,
         customerId: selectedCustomerId,
-        customerName: selectedCustomer?.name,
+        customerName: customerName || selectedCustomer?.name,
+        customerEmail: customerEmail || selectedCustomer?.email,
         paymentTerms,
         validUntil,
         notes,
@@ -220,10 +337,13 @@ const NewQuotationPage = () => {
             productId: it.productId,
             name: it.name,
             sku: it.sku,
-            qty: it.qty,
-            unitPrice: it.price,
-            discount: it.discount,
-            taxRate: it.taxRate,
+            quantity: Number(it.qty || 1),
+            qty: Number(it.qty || 1),
+            unitPrice: Number(it.price || 0),
+            price: Number(it.price || 0),
+            discountPercent: Number(it.discount || 0),
+            discount: Number(it.discount || 0),
+            taxRate: Number(it.taxRate || 18),
             netPrice: metrics.net,
             marginPercent: metrics.marginPercent.toFixed(1),
             isOverLimit: metrics.isOverLimit
@@ -231,43 +351,19 @@ const NewQuotationPage = () => {
         })
       };
 
-      const localQuoteRecord = {
-        id: quoteNumber,
-        customer: selectedCustomer?.name || 'Customer Account',
-        tier: selectedCustomer?.tier || 'STANDARD',
-        amount: `₹${grandTotal.toLocaleString()}`,
-        status: anyOverLimit ? 'Pending Approval' : 'Draft',
-        statusVariant: anyOverLimit ? 'warning' : 'default',
-        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        itemsCount: items.length,
-        salesRep: 'Sales Representative',
-        pendingCustomerRequests: 0,
-        contactPerson: selectedCustomer?.contactPerson || 'Procurement',
-        customerEmail: selectedCustomer?.email || 'contact@client.com',
-        items: payload.items.map((it) => ({
-          id: it.productId,
-          name: it.name,
-          qty: it.qty,
-          price: it.unitPrice,
-          discount: it.discount,
-          limit: 15,
-          status: it.isOverLimit ? 'OVER' : 'OK',
-          statusType: it.isOverLimit ? 'danger' : 'success'
-        }))
-      };
-
-      try {
-        const existing = JSON.parse(localStorage.getItem('dealflow360_quotations') || '[]');
-        localStorage.setItem('dealflow360_quotations', JSON.stringify([localQuoteRecord, ...existing]));
-      } catch (saveErr) {
-        console.warn('Could not save to localStorage', saveErr);
-      }
-
       const res = await quotationAPI.create(payload);
 
+      if (res && res.alreadyExists && res.data) {
+        setSubmitError(`An active quotation (${res.data.quoteNumber || res.data.id}) already exists for this Order Request.`);
+        setTimeout(() => {
+          navigate(`/quotations/${res.data.id}`);
+        }, 2000);
+        return;
+      }
+
       setSubmitSuccess(
-        `Quotation ${quoteNumber} created successfully! ${
-          anyOverLimit ? 'Discount limits exceeded: Routed to Governance for Sales Manager Approval.' : 'Saved as Draft.'
+        `Quotation ${quoteNumber} created successfully in PostgreSQL! ${
+          anyOverLimit ? 'Discount limits exceeded: Routed for Sales Manager Approval.' : 'Saved as Draft.'
         }`
       );
 
@@ -275,11 +371,9 @@ const NewQuotationPage = () => {
         navigate('/quotations');
       }, 1600);
     } catch (err) {
-      console.warn('[Quotation Submit Failed, fallback local message]', err);
-      setSubmitSuccess(`Quotation ${quoteNumber} created successfully! Redirecting...`);
-      setTimeout(() => {
-        navigate('/quotations');
-      }, 1600);
+      console.error('[Quotation Submit Error]', err);
+      const errMsg = err.response?.data?.message || err.message || 'Failed to create quotation.';
+      setSubmitError(errMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -293,9 +387,9 @@ const NewQuotationPage = () => {
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => navigate('/quotations')}
+              onClick={() => navigate(sourceOrderRequest ? `/order-requests/${sourceOrderRequest.id}` : '/order-requests')}
               className="p-2 bg-white border border-slate-200 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors shadow-2xs"
-              title="Back to Quotations"
+              title="Back"
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
@@ -317,7 +411,7 @@ const NewQuotationPage = () => {
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => navigate('/quotations')}
+              onClick={() => navigate('/order-requests')}
               disabled={isSubmitting}
             >
               Cancel
@@ -333,6 +427,95 @@ const NewQuotationPage = () => {
             </Button>
           </div>
         </div>
+
+        {/* PROMINENT ORDER REQUEST RELATIONSHIP BANNER */}
+        {sourceOrderRequest ? (
+          <div className="p-4 bg-purple-50/90 border-2 border-purple-300/80 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-[#a459a8] text-white rounded-xl shadow-sm">
+                <Inbox className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black uppercase tracking-wider text-purple-900">
+                    Created From Order Request:
+                  </span>
+                  <span className="text-xs font-black text-purple-700 bg-purple-100 px-2.5 py-0.5 rounded-md">
+                    #{sourceOrderRequest.requestNumber || sourceOrderRequest.id}
+                  </span>
+                </div>
+                <p className="text-[11px] text-purple-700 mt-0.5">
+                  Customer: <span className="font-bold text-purple-900">{sourceOrderRequest.customer?.name || sourceOrderRequest.customerName}</span> &bull; {sourceOrderRequest.items?.length || 0} requested items automatically imported
+                </p>
+              </div>
+            </div>
+            <Link
+              to={`/order-requests/${sourceOrderRequest.id}`}
+              className="text-xs font-bold text-purple-700 hover:text-purple-900 flex items-center gap-1 hover:underline"
+            >
+              View Original Request <ExternalLink className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        ) : (
+          <div className="p-4 bg-amber-50/80 border border-amber-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <Info className="w-5 h-5 text-amber-600 flex-shrink-0" />
+              <div>
+                <span className="text-xs font-bold text-amber-900 block">
+                  Select an Inbound Order Request to Link
+                </span>
+                <p className="text-[11px] text-amber-700">
+                  Standard CPQ workflow requires every quotation to originate from a Customer Order Request.
+                </p>
+              </div>
+            </div>
+            {availableRequests.length > 0 ? (
+              <select
+                onChange={(e) => {
+                  if (e.target.value) navigate(`/quotations/new?orderRequestId=${e.target.value}`);
+                }}
+                className="text-xs bg-white border border-amber-300 rounded-xl px-3 py-2 font-semibold text-slate-800 focus:outline-none"
+                defaultValue=""
+              >
+                <option value="" disabled>Link to Pending Request...</option>
+                {availableRequests.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    #{r.requestNumber || r.id} - {r.customer?.name || r.customerName}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <Button
+                variant="secondary"
+                size="xs"
+                icon={Inbox}
+                onClick={() => navigate('/order-requests')}
+              >
+                Go to Order Requests
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* Existing Quote Duplicate Warning */}
+        {existingQuoteWarning && (
+          <div className="p-4 bg-amber-100 border border-amber-300 rounded-xl flex items-center justify-between gap-3 text-amber-900">
+            <div className="flex items-center gap-2.5">
+              <AlertTriangle className="w-5 h-5 text-amber-700 flex-shrink-0" />
+              <div className="text-xs">
+                <span className="font-bold">Active Quotation Already Exists: </span>
+                <span>An active quotation #{existingQuoteWarning.quoteNumber || existingQuoteWarning.id} is already linked to this Order Request.</span>
+              </div>
+            </div>
+            <Button
+              variant="primary"
+              size="xs"
+              onClick={() => navigate(`/quotations/${existingQuoteWarning.id}`)}
+            >
+              Open Active Quote
+            </Button>
+          </div>
+        )}
 
         {/* Success / Error Alerts */}
         {submitSuccess && (
@@ -363,12 +546,19 @@ const NewQuotationPage = () => {
                     required
                     name="customer"
                     value={selectedCustomerId}
-                    onChange={(e) => setSelectedCustomerId(e.target.value)}
+                    onChange={(e) => {
+                      setSelectedCustomerId(e.target.value);
+                      const c = customers.find((cust) => cust.id === e.target.value);
+                      if (c) {
+                        setCustomerName(c.name);
+                        setCustomerEmail(c.email);
+                      }
+                    }}
                     error={errors.customer}
-                    placeholder="Select Customer Account"
-                    options={CUSTOMERS.map((c) => ({
+                    placeholder={loadingInitial ? 'Loading customer accounts...' : 'Select Customer Account'}
+                    options={customers.map((c) => ({
                       value: c.id,
-                      label: `${c.name} (${c.tier} Tier - Max ${c.maxDiscount}% Disc)`
+                      label: `${c.name} (${c.tier || 'STANDARD'} Tier - Max ${c.maxDiscount || 15}% Disc)`
                     }))}
                   />
                   {selectedCustomer && (
@@ -378,7 +568,7 @@ const NewQuotationPage = () => {
                         <span className="text-slate-400 ml-1.5">({selectedCustomer.email})</span>
                       </div>
                       <Badge variant={selectedCustomer.tier === 'GOLD' ? 'gold' : selectedCustomer.tier === 'SILVER' ? 'silver' : 'bronze'}>
-                        {selectedCustomer.tier} TIER
+                        {selectedCustomer.tier || 'STANDARD'} TIER
                       </Badge>
                     </div>
                   )}
@@ -463,9 +653,9 @@ const NewQuotationPage = () => {
                               onChange={(e) => handleItemChange(idx, 'productId', e.target.value)}
                               className="w-full text-xs font-semibold text-slate-800 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#a459a8]"
                             >
-                              {PRODUCTS.map((prod) => (
+                              {products.map((prod) => (
                                 <option key={prod.id} value={prod.id}>
-                                  {prod.name} ({prod.sku}) - ₹{prod.basePrice}
+                                  {prod.name} ({prod.sku}) - ₹{Number(prod.basePrice || 0).toLocaleString('en-IN')}
                                 </option>
                               ))}
                             </select>
@@ -495,7 +685,7 @@ const NewQuotationPage = () => {
                               <input
                                 type="number"
                                 min="0"
-                                step="10"
+                                step="100"
                                 value={item.price}
                                 onChange={(e) => handleItemChange(idx, 'price', e.target.value)}
                                 className="w-full text-right text-xs font-semibold text-slate-800 bg-white border border-slate-300 rounded-lg pl-6 pr-2 py-1.5 focus:outline-none focus:border-[#a459a8]"
@@ -535,7 +725,7 @@ const NewQuotationPage = () => {
                               ₹{metrics.net.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                             </span>
                             {metrics.discountAmount > 0 && (
-                              <span className="text-[10px] text-emerald-600 block line-through-none">
+                              <span className="text-[10px] text-emerald-600 block">
                                 -₹{metrics.discountAmount.toLocaleString('en-IN')}
                               </span>
                             )}

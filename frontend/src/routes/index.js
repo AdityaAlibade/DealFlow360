@@ -19,6 +19,10 @@ import QuotationPage from '../pages/QuotationPage';
 import QuotationDetailPage from '../pages/QuotationDetailPage';
 import NewQuotationPage from '../pages/NewQuotationPage';
 
+// Order Requests
+import OrderRequestsPage from '../pages/OrderRequestsPage';
+import OrderRequestDetailPage from '../pages/OrderRequestDetailPage';
+
 // Approvals
 import ApprovalPage from '../pages/ApprovalPage';
 import ApprovalDetailPage from '../pages/ApprovalDetailPage';
@@ -246,6 +250,40 @@ const AppRoutes = () => {
         }
       />
 
+
+      {/* Order Requests */}
+      <Route
+        path="/order-requests"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.PRODUCT_REQUEST_VIEW}>
+            <OrderRequestsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/order-requests/:id"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.PRODUCT_REQUEST_VIEW}>
+            <OrderRequestDetailPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/sales/order-requests"
+        element={
+          <ProtectedRoute allowedRoles={['sales_rep', 'sales_manager', 'admin']} requiredPermission={PERMISSIONS.PRODUCT_REQUEST_VIEW}>
+            <OrderRequestsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/sales/order-requests/:id"
+        element={
+          <ProtectedRoute allowedRoles={['sales_rep', 'sales_manager', 'admin']} requiredPermission={PERMISSIONS.PRODUCT_REQUEST_VIEW}>
+            <OrderRequestDetailPage />
+          </ProtectedRoute>
+        }
+      />
 
       {/* 4. Quotations */}
       <Route

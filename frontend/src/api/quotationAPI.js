@@ -12,6 +12,15 @@ const getHeaders = () => {
 };
 
 export const quotationAPI = {
+  getCustomers: async () => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/quotations/customers`, { headers: getHeaders() });
+      return res.data;
+    } catch {
+      return apiClient('/quotations/customers');
+    }
+  },
+
   getAll: async (params) => {
     try {
       const res = await axios.get(`${API_BASE_URL}/quotations`, { headers: getHeaders(), params });

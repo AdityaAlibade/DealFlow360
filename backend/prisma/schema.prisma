@@ -130,8 +130,9 @@ model User {
   createdAt            DateTime     @default(now()) @map("created_at")
   updatedAt            DateTime     @updatedAt @map("updated_at")
 
-  quotations           Quotation[]  @relation("SalesRepQuotations")
-  approvals            Approval[]   @relation("UserApprovals")
+  quotations           Quotation[]      @relation("SalesRepQuotations")
+  approvals            Approval[]       @relation("UserApprovals")
+  assignedRequests     ProductRequest[] @relation("SalesRepProductRequests")
 
   @@map("users")
 }
@@ -264,11 +265,13 @@ model Quotation {
   blendedRiskScore Float            @default(0.0) @map("blended_risk_score")
   portalToken      String?          @unique @map("portal_token")
   expiresAt        DateTime?        @map("expires_at")
+  productRequestId String?          @map("product_request_id")
   createdAt        DateTime         @default(now()) @map("created_at")
   updatedAt        DateTime         @updatedAt @map("updated_at")
 
   customer         Customer         @relation(fields: [customerId], references: [id])
   salesRep         User             @relation("SalesRepQuotations", fields: [salesRepId], references: [id])
+  productRequest   ProductRequest?  @relation(fields: [productRequestId], references: [id])
   items            QuotationItem[]
   approvals        Approval[]
   orders           Order[]
@@ -547,10 +550,16 @@ model UpsellRule {
 
 enum ProductRequestStatus {
   PENDING
+  UNDER_REVIEW
+  QUOTATION_CREATED
+  SENT_TO_CUSTOMER
+  NEGOTIATION
   ACCEPTED
-  QUOTED
+  CONFIRMED
+  FULFILLED
   REJECTED
   CANCELLED
+  QUOTED
 }
 
 enum NegotiationStatus {
@@ -564,17 +573,20 @@ enum NegotiationStatus {
 }
 
 model ProductRequest {
-  id            String               @id @default(cuid())
-  requestNumber String               @unique @map("request_number")
-  customerId    String               @map("customer_id")
-  status        ProductRequestStatus @default(PENDING)
-  totalAmount   Float                @default(0.0) @map("total_amount")
-  notes         String?
-  createdAt     DateTime             @default(now()) @map("created_at")
-  updatedAt     DateTime             @updatedAt @map("updated_at")
+  id                 String               @id @default(cuid())
+  requestNumber      String               @unique @map("request_number")
+  customerId         String               @map("customer_id")
+  assignedSalesRepId String?              @map("assigned_sales_rep_id")
+  status             ProductRequestStatus @default(PENDING)
+  totalAmount        Float                @default(0.0) @map("total_amount")
+  notes              String?
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime             @updatedAt @map("updated_at")
 
-  customer      Customer             @relation(fields: [customerId], references: [id])
-  items         ProductRequestItem[]
+  customer           Customer             @relation(fields: [customerId], references: [id])
+  assignedSalesRep   User?                @relation("SalesRepProductRequests", fields: [assignedSalesRepId], references: [id])
+  items              ProductRequestItem[]
+  quotations         Quotation[]
 
   @@map("product_requests")
 }

@@ -11,26 +11,37 @@ import {
   BarChart3,
   ShoppingBag,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Shield
 } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { PERMISSIONS } from '../../utils/permissions';
 
-const navItems = [
-  { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-  { label: 'Quotations', path: '/quotations', icon: FileText },
-  { label: 'Approvals', path: '/approvals', icon: CheckCircle2 },
-  { label: 'Fulfillment', path: '/fulfillment', icon: Package },
-  { label: 'Subscriptions', path: '/subscriptions', icon: Repeat },
-  { label: 'Invoices', path: '/invoices', icon: CreditCard },
-  { label: 'Deal Health', path: '/deal-health', icon: Activity },
-  { label: 'Reports', path: '/reports', icon: BarChart3 },
-  { label: 'Products', path: '/products', icon: ShoppingBag },
+const allNavItems = [
+  { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, permission: null },
+  { label: 'Quotations', path: '/quotations', icon: FileText, permission: PERMISSIONS.QUOTATION_READ },
+  { label: 'Approvals', path: '/approvals', icon: CheckCircle2, permission: PERMISSIONS.APPROVAL_READ },
+  { label: 'Fulfillment', path: '/fulfillment', icon: Package, permission: PERMISSIONS.FULFILLMENT_READ },
+  { label: 'Subscriptions', path: '/subscriptions', icon: Repeat, permission: PERMISSIONS.BILLING_READ },
+  { label: 'Invoices', path: '/invoices', icon: CreditCard, permission: PERMISSIONS.INVOICE_READ },
+  { label: 'Deal Health', path: '/deal-health', icon: Activity, permission: PERMISSIONS.DEAL_HEALTH_READ },
+  { label: 'Reports', path: '/reports', icon: BarChart3, permission: PERMISSIONS.REPORT_READ },
+  { label: 'Products & Config', path: '/products', icon: ShoppingBag, permission: PERMISSIONS.PRODUCT_READ },
 ];
 
 const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
+  const { user, role, checkPermission } = useAuth();
+
+  // Filter navigation items based on current role permissions
+  const visibleNavItems = allNavItems.filter((item) => {
+    if (!item.permission) return true;
+    return checkPermission(item.permission);
+  });
+
   return (
     <aside
       className={`bg-slate-900 text-slate-300 flex flex-col transition-all duration-300 ease-in-out border-r border-slate-800 z-40 ${
-        isCollapsed ? 'w-20' : 'w-60'
+        isCollapsed ? 'w-20' : 'w-64'
       }`}
     >
       {/* Sidebar Header */}
@@ -38,19 +49,22 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
         {!isCollapsed && (
           <Link
             to="/dashboard"
-            className="flex items-center gap-2 cursor-pointer hover:opacity-90 transition-opacity focus:outline-none"
+            className="flex items-center gap-2.5 cursor-pointer hover:opacity-90 transition-opacity focus:outline-none"
             title="DealFlow360 Dashboard"
           >
-            <div className="w-7 h-7 rounded-lg bg-[#a459a8] flex items-center justify-center text-white font-bold text-sm shadow-sm shadow-[#a459a8]/30">
+            <div className="w-7 h-7 rounded-lg bg-[#a459a8] flex items-center justify-center text-white font-bold text-sm shadow-md shadow-[#a459a8]/40">
               D
             </div>
-            <span className="text-base font-bold text-white tracking-tight">DealFlow360</span>
+            <div>
+              <span className="text-base font-extrabold text-white tracking-tight">DealFlow360</span>
+              <p className="text-[9px] uppercase tracking-wider text-purple-400 font-bold">Revenue Engine</p>
+            </div>
           </Link>
         )}
         {isCollapsed && (
           <Link
             to="/dashboard"
-            className="w-8 h-8 rounded-lg bg-[#a459a8] mx-auto flex items-center justify-center text-white font-bold text-sm shadow-sm shadow-[#a459a8]/30 cursor-pointer hover:opacity-90 transition-opacity focus:outline-none"
+            className="w-8 h-8 rounded-lg bg-[#a459a8] mx-auto flex items-center justify-center text-white font-bold text-sm shadow-md shadow-[#a459a8]/30 cursor-pointer hover:opacity-90 transition-opacity focus:outline-none"
             title="DealFlow360 Dashboard"
           >
             D
@@ -58,9 +72,20 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
         )}
       </div>
 
+      {/* Role Badge Indicator */}
+      {!isCollapsed && user && (
+        <div className="px-4 py-2.5 mx-3 mt-3 bg-slate-800/80 rounded-xl border border-slate-700/60 flex items-center gap-2">
+          <Shield className="w-3.5 h-3.5 text-[#a459a8] flex-shrink-0" />
+          <div className="truncate">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Current Role</p>
+            <p className="text-xs font-bold text-white truncate">{user.roleLabel || role}</p>
+          </div>
+        </div>
+      )}
+
       {/* Navigation List */}
-      <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
-        {navItems.map((item) => {
+      <nav className="flex-1 px-3 py-3 space-y-1.5 overflow-y-auto">
+        {visibleNavItems.map((item) => {
           const Icon = item.icon;
           return (
             <NavLink
@@ -88,11 +113,11 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5 overflow-hidden">
               <div className="w-8 h-8 rounded-full bg-[#a459a8]/30 border border-[#a459a8]/50 text-[#ddbade] flex items-center justify-center font-bold text-xs flex-shrink-0">
-                JD
+                {user?.avatar || 'U'}
               </div>
               <div className="truncate">
-                <p className="text-xs font-semibold text-white truncate">John Doe</p>
-                <p className="text-[10px] text-slate-400">Sales Rep</p>
+                <p className="text-xs font-semibold text-white truncate">{user?.name || 'Guest'}</p>
+                <p className="text-[10px] text-slate-400 capitalize">{user?.role || 'Guest'}</p>
               </div>
             </div>
             <button

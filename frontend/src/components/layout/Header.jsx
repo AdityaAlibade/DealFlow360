@@ -1,18 +1,42 @@
-import React, { useState } from 'react';
-import { Search, Bell, User, Settings, LogOut, ChevronDown } from 'lucide-react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Search, Bell, User, Settings, LogOut, ChevronDown, Shield, Crown, Briefcase, UserCheck, Calculator, Globe } from 'lucide-react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useAuth, DEMO_ACCOUNTS } from '../../contexts/AuthContext';
 
 const Header = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [hasNotifications] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user, role, switchRole, logout } = useAuth();
 
   const handleLogout = () => {
+    logout();
     navigate('/login');
   };
 
+  const handleRoleClick = (roleKey) => {
+    if (roleKey === 'customer') {
+      switchRole('customer');
+      navigate('/customer-portal/demo-token-123');
+    } else {
+      switchRole(roleKey);
+      // If we are currently on customer portal, navigate back to dashboard
+      if (location.pathname.startsWith('/customer-portal')) {
+        navigate('/dashboard');
+      }
+    }
+  };
+
+  const roleButtons = [
+    { key: 'admin', label: 'Admin', icon: Crown, color: 'hover:border-purple-500 hover:text-purple-600', activeBg: 'bg-purple-600 text-white shadow-purple-200' },
+    { key: 'sales_rep', label: 'Sales Rep', icon: Briefcase, color: 'hover:border-blue-500 hover:text-blue-600', activeBg: 'bg-blue-600 text-white shadow-blue-200' },
+    { key: 'sales_manager', label: 'Sales Mgr', icon: UserCheck, color: 'hover:border-indigo-500 hover:text-indigo-600', activeBg: 'bg-indigo-600 text-white shadow-indigo-200' },
+    { key: 'finance_ops', label: 'Finance & Ops', icon: Calculator, color: 'hover:border-emerald-500 hover:text-emerald-600', activeBg: 'bg-emerald-600 text-white shadow-emerald-200' },
+    { key: 'customer', label: 'Customer Portal', icon: Globe, color: 'hover:border-amber-500 hover:text-amber-600', activeBg: 'bg-amber-600 text-white shadow-amber-200' }
+  ];
+
   return (
-    <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between sticky top-0 z-30 shadow-sm">
+    <header className="h-16 bg-white border-b border-slate-200 px-4 md:px-6 flex items-center justify-between sticky top-0 z-30 shadow-sm">
       {/* Left: Brand / Title */}
       <div className="flex items-center gap-3">
         <Link
@@ -23,28 +47,41 @@ const Header = () => {
           <div className="w-8 h-8 rounded-lg bg-[#a459a8] flex items-center justify-center text-white font-bold shadow-md shadow-[#a459a8]/20">
             D
           </div>
-          <span className="font-extrabold text-lg tracking-tight text-slate-900">
+          <span className="font-extrabold text-lg tracking-tight text-slate-900 hidden sm:inline">
             DealFlow<span className="text-[#a459a8]">360</span>
           </span>
         </Link>
       </div>
 
-      {/* Center: Search Bar */}
-      <div className="flex-1 max-w-md mx-8">
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-            <Search className="w-4 h-4" />
-          </div>
-          <input
-            type="text"
-            placeholder="Search quotations, customers, SKU, orders... (Ctrl + K)"
-            className="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-100 border border-transparent rounded-lg focus:outline-none focus:bg-white focus:border-[#a459a8] focus:ring-2 focus:ring-[#a459a8]/20 transition-all text-slate-700 placeholder-slate-400"
-          />
-        </div>
+      {/* Center: Prominent Role Access Buttons Toolbar */}
+      <div className="flex items-center gap-1.5 bg-slate-100/90 p-1 rounded-xl border border-slate-200 shadow-inner">
+        <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 px-2 flex items-center gap-1">
+          <Shield className="w-3 h-3 text-[#a459a8]" /> RBAC Roles:
+        </span>
+        {roleButtons.map((btn) => {
+          const Icon = btn.icon;
+          const isActive = role === btn.key;
+          return (
+            <button
+              key={btn.key}
+              id={`role-btn-${btn.key}`}
+              onClick={() => handleRoleClick(btn.key)}
+              title={`Switch active RBAC role to ${btn.label}`}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all duration-150 shadow-sm ${
+                isActive
+                  ? `${btn.activeBg} ring-2 ring-offset-1 ring-slate-900/10 scale-105`
+                  : `bg-white text-slate-700 border border-slate-200/80 ${btn.color} hover:bg-slate-50`
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">{btn.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Right: Notifications & User Profile */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         {/* Notification Bell */}
         <button className="relative p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors">
           <Bell className="w-5 h-5" />
@@ -57,48 +94,76 @@ const Header = () => {
         <div className="relative">
           <button
             onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="flex items-center gap-3 p-1.5 rounded-xl hover:bg-slate-100 transition-colors focus:outline-none"
+            className="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-slate-100 transition-colors focus:outline-none"
           >
-            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#a459a8] to-[#c892cb] text-white flex items-center justify-center font-semibold text-sm shadow-sm">
-              JD
+            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#a459a8] to-[#c892cb] text-white flex items-center justify-center font-bold text-xs shadow-sm">
+              {user?.avatar || 'U'}
             </div>
-            <div className="text-left hidden md:block">
-              <p className="text-xs font-bold text-slate-800 leading-tight">John Doe</p>
-              <p className="text-[11px] text-slate-500 leading-tight">Sales Rep</p>
+            <div className="text-left hidden lg:block">
+              <p className="text-xs font-bold text-slate-800 leading-tight">{user?.name || 'User'}</p>
+              <p className="text-[11px] text-[#a459a8] font-semibold leading-tight capitalize">
+                {user?.roleLabel || role}
+              </p>
             </div>
             <ChevronDown className="w-4 h-4 text-slate-400" />
           </button>
 
           {dropdownOpen && (
-            <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 divide-y divide-slate-100 animate-in fade-in slide-in-from-top-2 duration-150">
+            <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-200 py-2 z-50 divide-y divide-slate-100 animate-in fade-in slide-in-from-top-2 duration-150">
               <div 
                 onClick={() => {
                   setDropdownOpen(false);
                   navigate('/profile');
                 }}
-                className="px-4 py-2 cursor-pointer hover:bg-purple-50/40 transition-colors"
+                className="px-4 py-2.5 cursor-pointer hover:bg-slate-50 transition-colors"
                 title="View Profile"
               >
-                <p className="text-xs font-semibold text-slate-800 hover:text-[#a459a8]">John Doe</p>
-                <p className="text-[11px] text-slate-400 truncate">demo@dealflow.com</p>
+                <p className="text-xs font-bold text-slate-900 hover:text-[#a459a8]">{user?.name || 'John Doe'}</p>
+                <p className="text-[11px] text-slate-500 font-mono truncate">{user?.email || 'demo@dealflow.com'}</p>
+                <div className="mt-1.5 inline-block px-2 py-0.5 rounded bg-purple-100 text-purple-800 text-[10px] font-bold">
+                  {user?.roleLabel || 'Sales Representative'}
+                </div>
               </div>
+
+              {/* Profile Link */}
               <div className="py-1">
                 <button
                   onClick={() => {
                     setDropdownOpen(false);
                     navigate('/profile');
                   }}
-                  className="w-full px-4 py-2 text-left text-xs text-slate-700 hover:bg-purple-50/50 hover:text-[#a459a8] flex items-center gap-2 cursor-pointer transition-colors"
+                  className="w-full px-4 py-2 text-left text-xs text-slate-700 hover:bg-purple-50/50 hover:text-[#a459a8] flex items-center gap-2 cursor-pointer transition-colors font-medium"
                 >
                   <User className="w-3.5 h-3.5" /> My Profile
                 </button>
-                <button
-                  onClick={() => setDropdownOpen(false)}
-                  className="w-full px-4 py-2 text-left text-xs text-slate-700 hover:bg-purple-50/50 hover:text-[#a459a8] flex items-center gap-2"
-                >
-                  <Settings className="w-3.5 h-3.5" /> System Settings
-                </button>
               </div>
+
+              {/* Fast Role Switch in Profile Menu */}
+              <div className="p-2 space-y-1">
+                <p className="px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Switch RBAC Persona</p>
+                {DEMO_ACCOUNTS && Object.keys(DEMO_ACCOUNTS).map((rKey) => {
+                  const acc = DEMO_ACCOUNTS[rKey];
+                  const isCurrent = role === rKey;
+                  return (
+                    <button
+                      key={rKey}
+                      onClick={() => {
+                        handleRoleClick(rKey);
+                        setDropdownOpen(false);
+                      }}
+                      className={`w-full px-2.5 py-1.5 text-left text-xs rounded-lg flex items-center justify-between transition-colors ${
+                        isCurrent
+                          ? 'bg-[#a459a8]/10 text-[#a459a8] font-bold'
+                          : 'text-slate-700 hover:bg-slate-50 font-medium'
+                      }`}
+                    >
+                      <span className="truncate">{acc.name} ({acc.roleLabel.split(' ')[0]})</span>
+                      {isCurrent && <span className="w-2 h-2 rounded-full bg-[#a459a8]" />}
+                    </button>
+                  );
+                })}
+              </div>
+
               <div className="py-1">
                 <button
                   onClick={handleLogout}

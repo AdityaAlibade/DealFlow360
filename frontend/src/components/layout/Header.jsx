@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import { Search, Bell, User, Settings, LogOut, ChevronDown, Shield, Crown, Briefcase, UserCheck, Calculator, Globe } from 'lucide-react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth, DEMO_ACCOUNTS } from '../../contexts/AuthContext';
@@ -7,7 +8,7 @@ const Header = () => {
   const [hasNotifications] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, role, switchRole, logout } = useAuth();
+  const { user, role, switchRole, logout, isAdmin } = useAuth();
 
   const handleLogout = () => {
     logout();
@@ -15,24 +16,15 @@ const Header = () => {
   };
 
   const handleRoleClick = (roleKey) => {
-    if (roleKey === 'customer') {
-      switchRole('customer');
-      navigate('/customer-portal/demo-token-123');
-    } else {
-      switchRole(roleKey);
-      // If we are currently on customer portal, navigate back to dashboard
-      if (location.pathname.startsWith('/customer-portal')) {
-        navigate('/dashboard');
-      }
-    }
+    if (roleKey === 'customer') return;
+    switchRole(roleKey);
   };
 
   const roleButtons = [
     { key: 'admin', label: 'Admin', icon: Crown, color: 'hover:border-purple-500 hover:text-purple-600', activeBg: 'bg-purple-600 text-white shadow-purple-200' },
     { key: 'sales_rep', label: 'Sales Rep', icon: Briefcase, color: 'hover:border-blue-500 hover:text-blue-600', activeBg: 'bg-blue-600 text-white shadow-blue-200' },
     { key: 'sales_manager', label: 'Sales Mgr', icon: UserCheck, color: 'hover:border-indigo-500 hover:text-indigo-600', activeBg: 'bg-indigo-600 text-white shadow-indigo-200' },
-    { key: 'finance_ops', label: 'Finance & Ops', icon: Calculator, color: 'hover:border-emerald-500 hover:text-emerald-600', activeBg: 'bg-emerald-600 text-white shadow-emerald-200' },
-    { key: 'customer', label: 'Customer Portal', icon: Globe, color: 'hover:border-amber-500 hover:text-amber-600', activeBg: 'bg-amber-600 text-white shadow-amber-200' }
+    { key: 'finance_ops', label: 'Finance & Ops', icon: Calculator, color: 'hover:border-emerald-500 hover:text-emerald-600', activeBg: 'bg-emerald-600 text-white shadow-emerald-200' }
   ];
 
   return (
@@ -53,32 +45,34 @@ const Header = () => {
         </Link>
       </div>
 
-      {/* Center: Prominent Role Access Buttons Toolbar */}
-      <div className="flex items-center gap-1.5 bg-slate-100/90 p-1 rounded-xl border border-slate-200 shadow-inner">
-        <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 px-2 flex items-center gap-1">
-          <Shield className="w-3 h-3 text-[#a459a8]" /> RBAC Roles:
-        </span>
-        {roleButtons.map((btn) => {
-          const Icon = btn.icon;
-          const isActive = role === btn.key;
-          return (
-            <button
-              key={btn.key}
-              id={`role-btn-${btn.key}`}
-              onClick={() => handleRoleClick(btn.key)}
-              title={`Switch active RBAC role to ${btn.label}`}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all duration-150 shadow-sm ${
-                isActive
-                  ? `${btn.activeBg} ring-2 ring-offset-1 ring-slate-900/10 scale-105`
-                  : `bg-white text-slate-700 border border-slate-200/80 ${btn.color} hover:bg-slate-50`
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">{btn.label}</span>
-            </button>
-          );
-        })}
-      </div>
+      {/* Center: Prominent Role Access Buttons Toolbar (Admin Portal Only) */}
+      {isAdmin && (
+        <div className="flex items-center gap-1.5 bg-slate-100/90 p-1 rounded-xl border border-slate-200 shadow-inner">
+          <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 px-2 flex items-center gap-1">
+            <Shield className="w-3 h-3 text-[#a459a8]" /> RBAC Roles:
+          </span>
+          {roleButtons.map((btn) => {
+            const Icon = btn.icon;
+            const isActive = role === btn.key;
+            return (
+              <button
+                key={btn.key}
+                id={`role-btn-${btn.key}`}
+                onClick={() => handleRoleClick(btn.key)}
+                title={`Switch active RBAC role to ${btn.label}`}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all duration-150 shadow-sm ${
+                  isActive
+                    ? `${btn.activeBg} ring-2 ring-offset-1 ring-slate-900/10 scale-105`
+                    : `bg-white text-slate-700 border border-slate-200/80 ${btn.color} hover:bg-slate-50`
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">{btn.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Right: Notifications & User Profile */}
       <div className="flex items-center gap-3">
@@ -138,31 +132,33 @@ const Header = () => {
                 </button>
               </div>
 
-              {/* Fast Role Switch in Profile Menu */}
-              <div className="p-2 space-y-1">
-                <p className="px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Switch RBAC Persona</p>
-                {DEMO_ACCOUNTS && Object.keys(DEMO_ACCOUNTS).map((rKey) => {
-                  const acc = DEMO_ACCOUNTS[rKey];
-                  const isCurrent = role === rKey;
-                  return (
-                    <button
-                      key={rKey}
-                      onClick={() => {
-                        handleRoleClick(rKey);
-                        setDropdownOpen(false);
-                      }}
-                      className={`w-full px-2.5 py-1.5 text-left text-xs rounded-lg flex items-center justify-between transition-colors ${
-                        isCurrent
-                          ? 'bg-[#a459a8]/10 text-[#a459a8] font-bold'
-                          : 'text-slate-700 hover:bg-slate-50 font-medium'
-                      }`}
-                    >
-                      <span className="truncate">{acc.name} ({acc.roleLabel.split(' ')[0]})</span>
-                      {isCurrent && <span className="w-2 h-2 rounded-full bg-[#a459a8]" />}
-                    </button>
-                  );
-                })}
-              </div>
+              {/* Fast Role Switch in Profile Menu (Admin Only) */}
+              {isAdmin && (
+                <div className="p-2 space-y-1">
+                  <p className="px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Switch RBAC Persona</p>
+                  {DEMO_ACCOUNTS && Object.keys(DEMO_ACCOUNTS).filter(rKey => rKey !== 'customer').map((rKey) => {
+                    const acc = DEMO_ACCOUNTS[rKey];
+                    const isCurrent = role === rKey;
+                    return (
+                      <button
+                        key={rKey}
+                        onClick={() => {
+                          handleRoleClick(rKey);
+                          setDropdownOpen(false);
+                        }}
+                        className={`w-full px-2.5 py-1.5 text-left text-xs rounded-lg flex items-center justify-between transition-colors ${
+                          isCurrent
+                            ? 'bg-[#a459a8]/10 text-[#a459a8] font-bold'
+                            : 'text-slate-700 hover:bg-slate-50 font-medium'
+                        }`}
+                      >
+                        <span className="truncate">{acc.name} ({acc.roleLabel.split(' ')[0]})</span>
+                        {isCurrent && <span className="w-2 h-2 rounded-full bg-[#a459a8]" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
               <div className="py-1">
                 <button

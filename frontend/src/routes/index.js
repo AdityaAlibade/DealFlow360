@@ -69,8 +69,145 @@ const AppRoutes = () => {
 
       {/* 2. Customer Portal (Isolated Layout & Token Security) */}
       <Route path="/customer-portal/:token" element={<CustomerPortalPage />} />
+      <Route path="/customer" element={<CustomerPortalPage />} />
+      <Route path="/customer/portal" element={<CustomerPortalPage />} />
+      <Route path="/customer/*" element={<CustomerPortalPage />} />
 
-      {/* 3. Dashboard (Internal Authenticated Users) */}
+      {/* 3. Dedicated Admin Portal (/admin/* -> ADMIN only) */}
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/dashboard"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/*"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* 4. Dedicated Sales Portal (/sales/* -> SALES REP & SALES MANAGER) */}
+      <Route
+        path="/sales"
+        element={
+          <ProtectedRoute allowedRoles={['sales_rep', 'sales_manager', 'admin']}>
+            <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/sales/dashboard"
+        element={
+          <ProtectedRoute allowedRoles={['sales_rep', 'sales_manager', 'admin']}>
+            <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/sales/quotations"
+        element={
+          <ProtectedRoute allowedRoles={['sales_rep', 'sales_manager', 'admin']} requiredPermission={PERMISSIONS.QUOTATION_READ}>
+            <QuotationPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/sales/quotations/new"
+        element={
+          <ProtectedRoute allowedRoles={['sales_rep', 'sales_manager', 'admin']} requiredPermission={PERMISSIONS.QUOTATION_READ}>
+            <NewQuotationPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/sales/quotations/:id"
+        element={
+          <ProtectedRoute allowedRoles={['sales_rep', 'sales_manager', 'admin']} requiredPermission={PERMISSIONS.QUOTATION_READ}>
+            <QuotationDetailPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/sales/*"
+        element={
+          <ProtectedRoute allowedRoles={['sales_rep', 'sales_manager', 'admin']}>
+            <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* 5. Dedicated Finance Portal (/finance/* -> FINANCE & OPS) */}
+      <Route
+        path="/finance"
+        element={
+          <ProtectedRoute allowedRoles={['finance_ops', 'admin']}>
+            <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/finance/dashboard"
+        element={
+          <ProtectedRoute allowedRoles={['finance_ops', 'admin']}>
+            <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/finance/invoices"
+        element={
+          <ProtectedRoute allowedRoles={['finance_ops', 'admin']} requiredPermission={PERMISSIONS.INVOICE_READ}>
+            <InvoicePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/finance/subscriptions"
+        element={
+          <ProtectedRoute allowedRoles={['finance_ops', 'admin']} requiredPermission={PERMISSIONS.BILLING_READ}>
+            <SubscriptionPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/finance/fulfillment"
+        element={
+          <ProtectedRoute allowedRoles={['finance_ops', 'admin']} requiredPermission={PERMISSIONS.FULFILLMENT_READ}>
+            <FulfillmentPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/finance/approvals"
+        element={
+          <ProtectedRoute allowedRoles={['finance_ops', 'admin']} requiredPermission={PERMISSIONS.APPROVAL_READ}>
+            <ApprovalPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/finance/*"
+        element={
+          <ProtectedRoute allowedRoles={['finance_ops', 'admin']}>
+            <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* 6. Dashboard (Internal Authenticated Users) */}
       <Route
         path="/dashboard"
         element={
@@ -79,6 +216,7 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+
 
       {/* 4. Quotations */}
       <Route

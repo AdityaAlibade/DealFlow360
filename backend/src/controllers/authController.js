@@ -97,7 +97,48 @@ const authController = {
     } catch (error) {
       next(error);
     }
+  },
+
+  switchRole: async (req, res, next) => {
+    try {
+      // Require caller to be ADMIN
+      const callerRole = (req.user?.role || '').toUpperCase();
+      if (callerRole !== 'ADMIN') {
+        return res.status(403).json({
+          success: false,
+          message: 'Forbidden. Only administrators can perform role switching.'
+        });
+      }
+
+      const { targetRole } = req.body;
+      const normalizedTarget = (targetRole || '').toLowerCase();
+
+      // Explicitly reject Customer Portal switching
+      if (normalizedTarget === 'customer') {
+        return res.status(403).json({
+          success: false,
+          message: 'Customer Portal access cannot be assumed via role switching. Customers must authenticate separately.'
+        });
+      }
+
+      const allowedRoles = ['admin', 'sales_rep', 'sales_manager', 'finance_ops'];
+      if (!allowedRoles.includes(normalizedTarget)) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid role requested. Allowed roles: ${allowedRoles.join(', ')}`
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: `Active persona switched to ${normalizedTarget}`,
+        role: normalizedTarget
+      });
+    } catch (error) {
+      next(error);
+    }
   }
 };
 
 module.exports = authController;
+

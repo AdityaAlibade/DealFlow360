@@ -71,7 +71,25 @@ export const AuthProvider = ({ children }) => {
     return DEMO_ACCOUNTS.admin;
   });
 
+  const [authUser, setAuthUser] = useState(() => {
+    const savedAuth = localStorage.getItem('dealflow360_auth_user');
+    if (savedAuth) {
+      try {
+        return JSON.parse(savedAuth);
+      } catch {
+        return null;
+      }
+    }
+    // Default to initial user if admin
+    return null;
+  });
+
   const [loading, setLoading] = useState(false);
+
+  // Authenticated user determination:
+  // An authenticated Admin is either identified by authUser or user having admin role
+  const effectiveAuth = authUser || user;
+  const isAdmin = effectiveAuth?.role === 'admin';
 
   useEffect(() => {
     if (user) {
@@ -82,11 +100,33 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('dealflow360_user');
       localStorage.removeItem('dealflow360_token');
       localStorage.removeItem('dealflow360_role');
+      localStorage.removeItem('dealflow360_auth_user');
     }
   }, [user]);
 
-  // Fast 1-click Role Switcher
+  // Secure Role Switcher: Strictly restricted to Admin users only
   const switchRole = (roleKey) => {
+    // 1. Security check: Only Admin may switch roles
+    if (!isAdmin) {
+      logAuditEvent({
+        user: user?.name || 'Unknown',
+        role: user?.role || 'UNKNOWN',
+        action: 'UNAUTHORIZED_ACCESS_ATTEMPT',
+        resource: 'RBAC_SWITCHER',
+        resourceId: roleKey,
+        result: 'FORBIDDEN_403',
+        reason: `Non-admin role '${user?.role}' attempted unauthorized role switch to '${roleKey}'`
+      });
+      console.warn(`[RBAC Security] Role switch to '${roleKey}' rejected. Only Admin portal has role switching privileges.`);
+      return null;
+    }
+
+    // 2. Security check: Customer portal cannot be assumed via role switcher
+    if (roleKey === 'customer') {
+      console.warn('[RBAC Security] Customer Portal access cannot be assumed via role switching.');
+      return null;
+    }
+
     const target = DEMO_ACCOUNTS[roleKey];
     if (target) {
       setUser(target);
@@ -113,6 +153,8 @@ export const AuthProvider = ({ children }) => {
 
     if (match) {
       setUser(match);
+      setAuthUser(match);
+      localStorage.setItem('dealflow360_auth_user', JSON.stringify(match));
       logAuditEvent({
         user: match.name,
         role: match.role,
@@ -138,6 +180,8 @@ export const AuthProvider = ({ children }) => {
       token: 'jwt-custom-token'
     };
     setUser(fallback);
+    setAuthUser(fallback);
+    localStorage.setItem('dealflow360_auth_user', JSON.stringify(fallback));
     setLoading(false);
     return { success: true, user: fallback };
   };
@@ -154,6 +198,8 @@ export const AuthProvider = ({ children }) => {
       token: 'jwt-signup-token'
     };
     setUser(newUser);
+    setAuthUser(newUser);
+    localStorage.setItem('dealflow360_auth_user', JSON.stringify(newUser));
     return { success: true, user: newUser };
   };
 
@@ -170,6 +216,8 @@ export const AuthProvider = ({ children }) => {
       });
     }
     setUser(null);
+    setAuthUser(null);
+    localStorage.removeItem('dealflow360_auth_user');
   };
 
   const checkPermission = (permission) => {
@@ -183,6 +231,9 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider
       value={{
         user,
+        authUser,
+        isAdmin,
+        canSwitchRole: isAdmin,
         loading,
         role: user?.role || null,
         permissions,

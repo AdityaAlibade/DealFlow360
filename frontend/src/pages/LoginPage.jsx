@@ -12,36 +12,47 @@ const LoginPage = () => {
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
-  const { login, switchRole } = useAuth();
+  const { login } = useAuth();
+
+  const getPortalDestination = (roleKey) => {
+    switch (roleKey) {
+      case 'admin':
+        return '/admin';
+      case 'sales_rep':
+      case 'sales_manager':
+        return '/sales';
+      case 'finance_ops':
+        return '/finance';
+      case 'customer':
+        return '/customer-portal/demo-token-123';
+      default:
+        return '/dashboard';
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
     try {
       const res = await login(email, password);
-      if (res.user.role === 'customer') {
-        navigate('/customer-portal/demo-token-123');
-      } else {
-        navigate('/dashboard');
-      }
+      const destination = getPortalDestination(res.user?.role);
+      navigate(destination);
     } catch {
       setError('Invalid login credentials');
     }
   };
 
-  const handleQuickRoleLogin = (roleKey) => {
+  const handleQuickRoleLogin = async (roleKey) => {
     const acc = DEMO_ACCOUNTS[roleKey];
     if (acc) {
       setEmail(acc.email);
       setPassword('password123');
-      switchRole(roleKey);
-      if (roleKey === 'customer') {
-        navigate('/customer-portal/demo-token-123');
-      } else {
-        navigate('/dashboard');
-      }
+      await login(acc.email, 'password123');
+      const destination = getPortalDestination(roleKey);
+      navigate(destination);
     }
   };
+
 
   const quickRoles = [
     { key: 'admin', label: 'Admin', roleText: 'Full System Access', icon: Crown, border: 'hover:border-purple-500 hover:bg-purple-50/50', badge: 'bg-purple-100 text-purple-700' },

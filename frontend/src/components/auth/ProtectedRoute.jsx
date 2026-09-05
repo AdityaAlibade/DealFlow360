@@ -64,12 +64,6 @@ const ProtectedRoute = ({
             </Link>
           </div>
           <div className="pt-2 flex flex-col gap-2">
-            <button
-              onClick={() => switchRole('admin')}
-              className="w-full py-2 px-4 rounded-xl text-xs font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors flex items-center justify-center gap-2"
-            >
-              <KeyRound className="w-3.5 h-3.5 text-amber-400" /> Switch to Admin / Internal Role for Testing
-            </button>
             <Link to="/login" className="text-xs text-slate-400 hover:text-slate-200">
               Sign out and login as another user
             </Link>
@@ -98,19 +92,12 @@ const ProtectedRoute = ({
               Your role <span className="font-bold text-slate-800 font-mono">[{user.roleLabel || role}]</span> is not permitted to view this module. Allowed roles:{' '}
               <span className="font-semibold text-slate-700">{allowedRoles.join(', ')}</span>.
             </p>
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 text-left">
-              <p className="font-semibold text-slate-800 mb-1">Quick Switch for Testing:</p>
-              <div className="flex flex-wrap gap-2">
-                {allowedRoles.map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => switchRole(r)}
-                    className="px-2.5 py-1 bg-white border border-slate-300 hover:border-[#a459a8] hover:text-[#a459a8] rounded-lg text-[11px] font-bold transition-colors"
-                  >
-                    Switch to {r.toUpperCase()}
-                  </button>
-                ))}
-              </div>
+            <div className="pt-2">
+              <Link to="/dashboard">
+                <Button variant="secondary" className="text-xs">
+                  Return to Dashboard
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
@@ -136,12 +123,11 @@ const ProtectedRoute = ({
             This action requires permission <span className="font-mono font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded">{requiredPermission}</span> which is not granted to <span className="font-bold text-slate-800">{user.roleLabel || role}</span>.
           </p>
           <div className="pt-2">
-            <button
-              onClick={() => switchRole('admin')}
-              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors"
-            >
-              Switch to Admin for Full Access
-            </button>
+            <Link to="/dashboard">
+              <Button variant="secondary" className="text-xs">
+                Return to Dashboard
+              </Button>
+            </Link>
           </div>
         </div>
       </div>

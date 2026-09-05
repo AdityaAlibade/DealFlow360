@@ -7,14 +7,18 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 
+const DEMO_TOKENS = {
+  'jwt-admin-token-dealflow360': { id: 'usr-admin-01', email: 'admin@dealflow360.com', role: 'ADMIN', fullName: 'Sarah Connor' },
+  'jwt-salesrep-token-dealflow360': { id: 'usr-rep-02', email: 'salesrep@dealflow360.com', role: 'SALES_REP', fullName: 'Alex Rivera' },
+  'jwt-manager-token-dealflow360': { id: 'usr-mgr-03', email: 'manager@dealflow360.com', role: 'SALES_MANAGER', fullName: 'Marcus Vance' },
+  'jwt-finance-token-dealflow360': { id: 'usr-fin-04', email: 'finance@dealflow360.com', role: 'FINANCE_OPS', fullName: 'Elena Rostova' },
+  'demo-token-123': { id: 'usr-cust-05', email: 'customer@acmecorp.com', role: 'CUSTOMER', fullName: 'David Sterling' }
+};
+
 const verifyToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    if (config.env === 'development' || process.env.NODE_ENV !== 'production') {
-      req.user = { id: 'usr-cuid-9021', email: 'demo@dealflow.com', role: 'SALES_REP', fullName: 'John Doe' };
-      return next();
-    }
     return res.status(401).json({
       success: false,
       message: 'Access denied. No authentication token provided.'
@@ -23,15 +27,18 @@ const verifyToken = (req, res, next) => {
 
   const token = authHeader.split(' ')[1];
 
+  // 1. Check mapped demo tokens
+  if (DEMO_TOKENS[token]) {
+    req.user = DEMO_TOKENS[token];
+    return next();
+  }
+
+  // 2. Verify JWT token
   try {
     const decoded = jwt.verify(token, config.jwt.secret);
     req.user = decoded;
     next();
   } catch (error) {
-    if (config.env === 'development' || process.env.NODE_ENV !== 'production') {
-      req.user = { id: 'usr-cuid-9021', email: 'demo@dealflow.com', role: 'SALES_REP', fullName: 'John Doe' };
-      return next();
-    }
     return res.status(401).json({
       success: false,
       message: 'Invalid or expired session token.'
@@ -40,3 +47,4 @@ const verifyToken = (req, res, next) => {
 };
 
 module.exports = { verifyToken };
+

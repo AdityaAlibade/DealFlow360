@@ -10,12 +10,15 @@ const requireRole = (allowedRoles = []) => {
       return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
 
+    const currentRole = (req.user.role || '').toUpperCase();
+    const normalizedAllowed = (Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles]).map(r => String(r).toUpperCase());
+
     // Admin always has bypass authorization
-    if (req.user.role === 'ADMIN') {
+    if (currentRole === 'ADMIN') {
       return next();
     }
 
-    if (Array.isArray(allowedRoles) && !allowedRoles.includes(req.user.role)) {
+    if (normalizedAllowed.length > 0 && !normalizedAllowed.includes(currentRole)) {
       return res.status(403).json({
         success: false,
         message: 'Forbidden. You do not have adequate role privileges.'

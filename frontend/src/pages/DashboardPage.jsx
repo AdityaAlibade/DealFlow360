@@ -110,7 +110,7 @@ const DashboardPage = () => {
           <Button variant="secondary" size="sm" onClick={() => navigate('/deal-health')}>
             View Health Alerts
           </Button>
-          <Button variant="primary" size="sm" icon={Plus} onClick={() => navigate('/quotations')}>
+          <Button variant="primary" size="sm" icon={Plus} onClick={() => navigate('/quotations/new')}>
             New Quotation
           </Button>
         </div>
@@ -189,8 +189,8 @@ const DashboardPage = () => {
         <Card title="Quick Actions">
           <div className="space-y-3">
             <button
-              onClick={() => navigate('/quotations')}
-              className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-[#a459a8] hover:bg-purple-50/30 transition-all text-left"
+              onClick={() => navigate('/quotations/new')}
+              className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-[#a459a8] hover:bg-purple-50/30 transition-all text-left cursor-pointer"
             >
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-[#a459a8]/10 text-[#a459a8]">

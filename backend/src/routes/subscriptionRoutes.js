@@ -12,6 +12,7 @@ const { verifyToken } = require('../middleware/auth');
 router.get('/', verifyToken, subscriptionController.getAll);
 router.post('/', verifyToken, subscriptionController.create);
 router.get('/plans', verifyToken, subscriptionController.getPlans);
+router.post('/plans', verifyToken, subscriptionController.create);
 router.get('/:id', verifyToken, subscriptionController.getById);
 router.put('/:id', verifyToken, subscriptionController.update);
 router.delete('/:id', verifyToken, subscriptionController.cancel);

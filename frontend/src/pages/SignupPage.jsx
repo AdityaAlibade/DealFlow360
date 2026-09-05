@@ -28,10 +28,16 @@ const SignupPage = () => {
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
       <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-200 w-full max-w-md">
         <div className="text-center mb-6">
-          <div className="w-12 h-12 rounded-2xl bg-[#a459a8] text-white font-bold text-2xl mx-auto flex items-center justify-center shadow-lg shadow-[#a459a8]/30 mb-3">
-            D
-          </div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Create Account</h1>
+          <Link
+            to="/dashboard"
+            className="inline-block cursor-pointer hover:opacity-90 transition-opacity"
+            title="DealFlow360 Dashboard"
+          >
+            <div className="w-12 h-12 rounded-2xl bg-[#a459a8] text-white font-bold text-2xl mx-auto flex items-center justify-center shadow-lg shadow-[#a459a8]/30 mb-3">
+              D
+            </div>
+            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Create Account</h1>
+          </Link>
           <p className="text-xs text-slate-500 mt-1">Get started with DealFlow360 platform</p>
         </div>
 

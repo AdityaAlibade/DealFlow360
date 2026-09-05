@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Bell, User, Settings, LogOut, ChevronDown } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 const Header = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -15,14 +15,18 @@ const Header = () => {
     <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between sticky top-0 z-30 shadow-sm">
       {/* Left: Brand / Title */}
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2">
+        <Link
+          to="/dashboard"
+          className="flex items-center gap-2 cursor-pointer hover:opacity-90 transition-opacity focus:outline-none"
+          title="DealFlow360 Dashboard"
+        >
           <div className="w-8 h-8 rounded-lg bg-[#a459a8] flex items-center justify-center text-white font-bold shadow-md shadow-[#a459a8]/20">
             D
           </div>
           <span className="font-extrabold text-lg tracking-tight text-slate-900">
             DealFlow<span className="text-[#a459a8]">360</span>
           </span>
-        </div>
+        </Link>
       </div>
 
       {/* Center: Search Bar */}
@@ -67,14 +71,24 @@ const Header = () => {
 
           {dropdownOpen && (
             <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 divide-y divide-slate-100 animate-in fade-in slide-in-from-top-2 duration-150">
-              <div className="px-4 py-2">
-                <p className="text-xs font-semibold text-slate-800">John Doe</p>
+              <div 
+                onClick={() => {
+                  setDropdownOpen(false);
+                  navigate('/profile');
+                }}
+                className="px-4 py-2 cursor-pointer hover:bg-purple-50/40 transition-colors"
+                title="View Profile"
+              >
+                <p className="text-xs font-semibold text-slate-800 hover:text-[#a459a8]">John Doe</p>
                 <p className="text-[11px] text-slate-400 truncate">demo@dealflow.com</p>
               </div>
               <div className="py-1">
                 <button
-                  onClick={() => setDropdownOpen(false)}
-                  className="w-full px-4 py-2 text-left text-xs text-slate-700 hover:bg-purple-50/50 hover:text-[#a459a8] flex items-center gap-2"
+                  onClick={() => {
+                    setDropdownOpen(false);
+                    navigate('/profile');
+                  }}
+                  className="w-full px-4 py-2 text-left text-xs text-slate-700 hover:bg-purple-50/50 hover:text-[#a459a8] flex items-center gap-2 cursor-pointer transition-colors"
                 >
                   <User className="w-3.5 h-3.5" /> My Profile
                 </button>

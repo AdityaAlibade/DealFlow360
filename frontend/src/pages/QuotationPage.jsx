@@ -93,7 +93,7 @@ const QuotationPage = () => {
         <Button
           variant="primary"
           icon={Plus}
-          onClick={() => navigate('/quotations/Q-1042')}
+          onClick={() => navigate('/quotations/new')}
         >
           New Quotation
         </Button>

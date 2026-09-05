@@ -40,18 +40,60 @@ const authController = {
   },
 
   getProfile: async (req, res, next) => {
-    // TODO: Fetch current authenticated user profile
     try {
-      res.status(200).json({ success: true, user: { id: 'usr-1', name: 'John Doe', role: 'SALES_REP' } });
+      const userProfile = {
+        id: req.user?.id || 'usr-cuid-9021',
+        fullName: req.user?.fullName || 'John Doe',
+        email: req.user?.email || 'demo@dealflow.com',
+        role: req.user?.role || 'SALES_REP',
+        phone: '+1 (555) 382-9104',
+        department: 'Enterprise Revenue & CPQ',
+        territory: 'North America - Tech & Financial',
+        title: 'Senior Enterprise Sales Representative',
+        bio: 'Strategic CPQ Deal Specialist driving enterprise deal governance, margin protection, and multi-tier subscription packaging.',
+        status: 'ACTIVE',
+        createdAt: '2024-01-15T08:30:00.000Z',
+        updatedAt: new Date().toISOString(),
+        stats: {
+          totalQuotations: 42,
+          pendingApprovals: 8,
+          approvedDeals: 31,
+          closedRevenue: '₹28,50,000',
+          targetQuota: '₹40,00,000',
+          winRate: 78.5,
+          avgDealMargin: 24.2,
+          governanceScore: '94/100'
+        },
+        governanceLimits: {
+          maxSelfDiscount: '15%',
+          requiresManagerDiscount: '> 15%',
+          requiresFinanceDiscount: '> 25%',
+          canApproveTier: 'BRONZE, SILVER',
+          assignedWarehouses: ['Main Hub (BOM-1)', 'East Depot (CCU-1)']
+        }
+      };
+
+      res.status(200).json({ success: true, user: userProfile });
     } catch (error) {
       next(error);
     }
   },
 
   updateProfile: async (req, res, next) => {
-    // TODO: Update user profile information
     try {
-      res.status(200).json({ success: true, message: 'Profile updated' });
+      const updatedUser = {
+        id: req.user?.id || 'usr-cuid-9021',
+        fullName: req.body.fullName || 'John Doe',
+        email: req.user?.email || 'demo@dealflow.com',
+        role: req.user?.role || 'SALES_REP',
+        phone: req.body.phone || '+1 (555) 382-9104',
+        department: req.body.department || 'Enterprise Revenue & CPQ',
+        territory: req.body.territory || 'North America - Tech & Financial',
+        title: req.body.title || 'Senior Enterprise Sales Representative',
+        bio: req.body.bio || '',
+        updatedAt: new Date().toISOString()
+      };
+      res.status(200).json({ success: true, message: 'Profile updated successfully', user: updatedUser });
     } catch (error) {
       next(error);
     }

@@ -1,9 +1,12 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Plus } from 'lucide-react';
 import Table from '../common/Table';
 import Badge from '../common/Badge';
 import Button from '../common/Button';
 
 const QuotationList = () => {
+  const navigate = useNavigate();
   // TODO: Connect with quotationAPI.getAll
   const columns = [
     { header: 'Quote ID', accessor: 'id' },
@@ -26,7 +29,9 @@ const QuotationList = () => {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold text-slate-800">All Quotations</h3>
-        <Button variant="primary">New Quotation</Button>
+        <Button variant="primary" icon={Plus} onClick={() => navigate('/quotations/new')}>
+          New Quotation
+        </Button>
       </div>
       <Table columns={columns} data={dummyData} />
     </div>

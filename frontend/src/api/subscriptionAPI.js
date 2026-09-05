@@ -9,8 +9,13 @@ export const subscriptionAPI = {
     // TODO: GET /subscriptions/:id
     return apiClient('/subscriptions/' + id);
   },
+  create: async (subscriptionData) => {
+    return apiClient('/subscriptions', { method: 'POST', body: subscriptionData });
+  },
+  createPlan: async (planData) => {
+    return apiClient('/subscriptions/plans', { method: 'POST', body: planData });
+  },
   updateBilling: async (id, billingData) => {
-    // TODO: PUT /subscriptions/:id/billing
     return apiClient('/subscriptions/' + id + '/billing', { method: 'PUT', body: billingData });
   }
 };

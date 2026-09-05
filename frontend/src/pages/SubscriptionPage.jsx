@@ -82,7 +82,11 @@ const SubscriptionPage = () => {
           <p className="text-xs text-slate-500 mt-1">Recurring contracts, SaaS licenses, and automated billing schedules</p>
         </div>
 
-        <Button variant="primary" icon={Plus}>
+        <Button
+          variant="primary"
+          icon={Plus}
+          onClick={() => navigate('/subscriptions/plans/new')}
+        >
           New Plan (Admin)
         </Button>
       </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, Link } from 'react-router-dom';
 import {
   LayoutDashboard,
   FileText,
@@ -36,17 +36,25 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
       {/* Sidebar Header */}
       <div className="h-16 flex items-center px-5 border-b border-slate-800/80 justify-between">
         {!isCollapsed && (
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-[#a459a8] flex items-center justify-center text-white font-bold text-sm">
+          <Link
+            to="/dashboard"
+            className="flex items-center gap-2 cursor-pointer hover:opacity-90 transition-opacity focus:outline-none"
+            title="DealFlow360 Dashboard"
+          >
+            <div className="w-7 h-7 rounded-lg bg-[#a459a8] flex items-center justify-center text-white font-bold text-sm shadow-sm shadow-[#a459a8]/30">
               D
             </div>
             <span className="text-base font-bold text-white tracking-tight">DealFlow360</span>
-          </div>
+          </Link>
         )}
         {isCollapsed && (
-          <div className="w-8 h-8 rounded-lg bg-[#a459a8] mx-auto flex items-center justify-center text-white font-bold text-sm">
+          <Link
+            to="/dashboard"
+            className="w-8 h-8 rounded-lg bg-[#a459a8] mx-auto flex items-center justify-center text-white font-bold text-sm shadow-sm shadow-[#a459a8]/30 cursor-pointer hover:opacity-90 transition-opacity focus:outline-none"
+            title="DealFlow360 Dashboard"
+          >
             D
-          </div>
+          </Link>
         )}
       </div>
 

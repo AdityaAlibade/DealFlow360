@@ -11,6 +11,7 @@ import DashboardPage from '../pages/DashboardPage';
 // Quotations
 import QuotationPage from '../pages/QuotationPage';
 import QuotationDetailPage from '../pages/QuotationDetailPage';
+import NewQuotationPage from '../pages/NewQuotationPage';
 
 // Approvals
 import ApprovalPage from '../pages/ApprovalPage';
@@ -23,6 +24,7 @@ import FulfillmentDetailPage from '../pages/FulfillmentDetailPage';
 // Subscriptions
 import SubscriptionPage from '../pages/SubscriptionPage';
 import SubscriptionDetailPage from '../pages/SubscriptionDetailPage';
+import NewSubscriptionPlanPage from '../pages/NewSubscriptionPlanPage';
 
 // Invoices
 import InvoicePage from '../pages/InvoicePage';
@@ -41,6 +43,9 @@ import ReportsPage from '../pages/ReportsPage';
 import ProductPage from '../pages/ProductPage';
 import ProductDetailPage from '../pages/ProductDetailPage';
 
+// Profile
+import ProfilePage from '../pages/ProfilePage';
+
 const AppRoutes = () => {
   return (
     <Routes>
@@ -48,11 +53,15 @@ const AppRoutes = () => {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
 
+      {/* User Profile */}
+      <Route path="/profile" element={<ProfilePage />} />
+
       {/* 2. Dashboard */}
       <Route path="/dashboard" element={<DashboardPage />} />
 
       {/* 3. Quotations */}
       <Route path="/quotations" element={<QuotationPage />} />
+      <Route path="/quotations/new" element={<NewQuotationPage />} />
       <Route path="/quotations/:id" element={<QuotationDetailPage />} />
 
       {/* 4. Approvals */}
@@ -65,6 +74,8 @@ const AppRoutes = () => {
 
       {/* 6. Subscriptions */}
       <Route path="/subscriptions" element={<SubscriptionPage />} />
+      <Route path="/subscriptions/plans/new" element={<NewSubscriptionPlanPage />} />
+      <Route path="/subscriptions/new" element={<NewSubscriptionPlanPage />} />
       <Route path="/subscriptions/:id" element={<SubscriptionDetailPage />} />
 
       {/* 7. Invoices */}

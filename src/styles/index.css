@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* TODO: Add custom DealFlow360 brand styling and utility classes */
+:root {
+  --primary-color: #a459a8;
+}

@@ -33,7 +33,7 @@ const Signup = () => {
           name="name"
           value={formData.name}
           onChange={handleChange}
-          placeholder="Jane Doe"
+          placeholder="Akshay bhor"
           required
         />
         <Input
@@ -42,7 +42,7 @@ const Signup = () => {
           name="email"
           value={formData.email}
           onChange={handleChange}
-          placeholder="jane@company.com"
+          placeholder="akshay@company.com"
           required
         />
         <Input
@@ -50,7 +50,7 @@ const Signup = () => {
           name="company"
           value={formData.company}
           onChange={handleChange}
-          placeholder="Acme Corp"
+          placeholder="odoo pvt.ltd"
           required
         />
         <Input
@@ -59,7 +59,7 @@ const Signup = () => {
           name="password"
           value={formData.password}
           onChange={handleChange}
-          placeholder="••••••••"
+          placeholder="********"
           required
         />
         <Button type="submit" variant="primary" className="w-full">
@@ -67,7 +67,7 @@ const Signup = () => {
         </Button>
       </form>
       <div className="mt-6 text-center text-sm text-slate-500">
-        Already registered?{' '}
+        Already Registered?{' '}
         <Link to="/login" className="text-primary font-medium hover:underline">
           Sign in
         </Link>

@@ -35,7 +35,7 @@ const Login = () => {
           name="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="••••••••"
+          placeholder="********"
           required
         />
         <Button type="submit" variant="primary" className="w-full">

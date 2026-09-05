@@ -1,0 +1,378 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ---------------------------------------------------------
+// ENUMS
+// ---------------------------------------------------------
+
+enum Role {
+  SALES_REP
+  SALES_MANAGER
+  FINANCE_APPROVER
+  FULFILLMENT_MANAGER
+  ADMIN
+}
+
+enum CustomerTier {
+  GOLD
+  SILVER
+  BRONZE
+}
+
+enum QuotationStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  NEGOTIATION
+  CONFIRMED
+  REJECTED
+  CANCELLED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  RETURNED
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum FulfillmentStatus {
+  PENDING
+  ALLOCATED
+  PARTIALLY_FULFILLED
+  FULFILLED
+  BACKORDERED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+  EXPIRED
+}
+
+enum BillingCycle {
+  MONTHLY
+  QUARTERLY
+  ANNUAL
+}
+
+enum InvoiceStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  VOID
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+// ---------------------------------------------------------
+// MODELS
+// ---------------------------------------------------------
+
+model User {
+  id               String       @id @default(cuid())
+  email            String       @unique
+  password         String
+  fullName         String       @map("full_name")
+  role             Role         @default(SALES_REP)
+  phone            String?
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+
+  quotations       Quotation[]  @relation("SalesRepQuotations")
+  approvals        Approval[]   @relation("UserApprovals")
+
+  @@map("users")
+}
+
+model Customer {
+  id               String        @id @default(cuid())
+  name             String
+  companyName      String        @map("company_name")
+  email            String        @unique
+  phone            String?
+  tier             CustomerTier  @default(BRONZE)
+  billingAddress   String?       @map("billing_address")
+  shippingAddress  String?       @map("shipping_address")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  quotations       Quotation[]
+  subscriptions    Subscription[]
+  invoices         Invoice[]
+
+  @@map("customers")
+}
+
+model Product {
+  id               String           @id @default(cuid())
+  sku              String           @unique
+  name             String
+  description      String?
+  category         String
+  basePrice        Float            @map("base_price")
+  standardCost     Float            @map("standard_cost")
+  taxRate          Float            @default(18.0) @map("tax_rate")
+  unit             String           @default("Each")
+  isSubscription   Boolean          @default(false) @map("is_subscription")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  variants         ProductVariant[]
+  stockLevels      StockLevel[]
+  quotationItems   QuotationItem[]
+  discountTiers    DiscountTier[]
+
+  @@map("products")
+}
+
+model ProductVariant {
+  id               String       @id @default(cuid())
+  productId        String       @map("product_id")
+  name             String
+  sku              String       @unique
+  priceDelta       Float        @default(0.0) @map("price_delta")
+  attributes       Json?
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+
+  product          Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_variants")
+}
+
+model Warehouse {
+  id               String        @id @default(cuid())
+  code             String        @unique
+  name             String
+  location         String
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  stockLevels      StockLevel[]
+  splits           FulfillmentSplit[]
+
+  @@map("warehouses")
+}
+
+model StockLevel {
+  id               String       @id @default(cuid())
+  productId        String       @map("product_id")
+  warehouseId      String       @map("warehouse_id")
+  inStock          Int          @default(0) @map("in_stock")
+  reserved         Int          @default(0) @map("reserved")
+  available        Int          @default(0) @map("available")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+
+  product          Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouse        Warehouse    @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, warehouseId])
+  @@map("stock_levels")
+}
+
+model DiscountTier {
+  id               String        @id @default(cuid())
+  productId        String?       @map("product_id")
+  tierName         String        @map("tier_name")
+  minQuantity      Int           @map("min_quantity")
+  maxQuantity      Int           @map("max_quantity")
+  maxDiscount      Float         @map("max_discount")
+  customerTier     CustomerTier? @map("customer_tier")
+  createdAt        DateTime      @default(now()) @map("created_at")
+
+  product          Product?      @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("discount_tiers")
+}
+
+model Quotation {
+  id               String           @id @default(cuid())
+  quoteNumber      String           @unique @map("quote_number")
+  customerId       String           @map("customer_id")
+  salesRepId       String           @map("sales_rep_id")
+  status           QuotationStatus  @default(DRAFT)
+  subtotal         Float            @default(0.0)
+  totalDiscount    Float            @default(0.0) @map("total_discount")
+  taxAmount        Float            @default(0.0) @map("tax_amount")
+  totalAmount      Float            @default(0.0) @map("total_amount")
+  blendedMargin    Float            @default(0.0) @map("blended_margin")
+  blendedRiskScore Float            @default(0.0) @map("blended_risk_score")
+  portalToken      String?          @unique @map("portal_token")
+  expiresAt        DateTime?        @map("expires_at")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  customer         Customer         @relation(fields: [customerId], references: [id])
+  salesRep         User             @relation("SalesRepQuotations", fields: [salesRepId], references: [id])
+  items            QuotationItem[]
+  approvals        Approval[]
+  fulfillments     Fulfillment[]
+  subscriptions    Subscription[]
+  invoices         Invoice[]
+  alerts           DealHealthAlert[]
+
+  @@index([customerId])
+  @@index([salesRepId])
+  @@map("quotations")
+}
+
+model QuotationItem {
+  id               String       @id @default(cuid())
+  quotationId      String       @map("quotation_id")
+  productId        String       @map("product_id")
+  quantity         Int          @default(1)
+  unitPrice        Float        @map("unit_price")
+  discountPercent  Float        @default(0.0) @map("discount_percent")
+  allowedLimit     Float        @default(10.0) @map("allowed_limit")
+  netPrice         Float        @map("net_price")
+  marginPercent    Float        @default(0.0) @map("margin_percent")
+  isOverLimit      Boolean      @default(false) @map("is_over_limit")
+
+  quotation        Quotation    @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  product          Product      @relation(fields: [productId], references: [id])
+
+  @@map("quotation_items")
+}
+
+model Approval {
+  id               String          @id @default(cuid())
+  quotationId      String          @map("quotation_id")
+  approverId       String?         @map("approver_id")
+  stage            String          @default("Sales Manager")
+  status           ApprovalStatus  @default(PENDING)
+  riskLevel        RiskLevel       @default(LOW) @map("risk_level")
+  reason           String?
+  comments         String?
+  approvedAt       DateTime?       @map("approved_at")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+
+  quotation        Quotation       @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  approver         User?           @relation("UserApprovals", fields: [approverId], references: [id])
+
+  @@map("approvals")
+}
+
+model Fulfillment {
+  id               String             @id @default(cuid())
+  quotationId      String             @map("quotation_id")
+  orderNumber      String             @unique @map("order_number")
+  status           FulfillmentStatus  @default(PENDING)
+  totalUnits       Int                @map("total_units")
+  backorderedUnits Int                @default(0) @map("backordered_units")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+
+  quotation        Quotation          @relation(fields: [quotationId], references: [id])
+  splits           FulfillmentSplit[]
+
+  @@map("fulfillments")
+}
+
+model FulfillmentSplit {
+  id               String       @id @default(cuid())
+  fulfillmentId    String       @map("fulfillment_id")
+  warehouseId      String       @map("warehouse_id")
+  allocatedUnits   Int          @map("allocated_units")
+  shippingCost     Float        @default(0.0) @map("shipping_cost")
+  status           String       @default("Scheduled")
+  createdAt        DateTime     @default(now()) @map("created_at")
+
+  fulfillment      Fulfillment  @relation(fields: [fulfillmentId], references: [id], onDelete: Cascade)
+  warehouse        Warehouse    @relation(fields: [warehouseId], references: [id])
+
+  @@map("fulfillment_splits")
+}
+
+model Subscription {
+  id               String              @id @default(cuid())
+  contractNumber   String              @unique @map("contract_number")
+  customerId       String              @map("customer_id")
+  quotationId      String?             @map("quotation_id")
+  planName         String              @map("plan_name")
+  billingCycle     BillingCycle        @default(MONTHLY) @map("billing_cycle")
+  recurringAmount  Float               @map("recurring_amount")
+  status           SubscriptionStatus  @default(ACTIVE)
+  startDate        DateTime            @default(now()) @map("start_date")
+  nextBillingDate  DateTime            @map("next_billing_date")
+  endDate          DateTime?           @map("end_date")
+  autoRenew        Boolean             @default(true) @map("auto_renew")
+  createdAt        DateTime            @default(now()) @map("created_at")
+  updatedAt        DateTime            @updatedAt @map("updated_at")
+
+  customer         Customer            @relation(fields: [customerId], references: [id])
+  quotation        Quotation?          @relation(fields: [quotationId], references: [id])
+
+  @@map("subscriptions")
+}
+
+model Invoice {
+  id               String         @id @default(cuid())
+  invoiceNumber    String         @unique @map("invoice_number")
+  customerId       String         @map("customer_id")
+  quotationId      String?        @map("quotation_id")
+  amount           Float
+  taxAmount        Float          @default(0.0) @map("tax_amount")
+  totalAmount      Float          @map("total_amount")
+  status           InvoiceStatus  @default(UNPAID)
+  dueDate          DateTime       @map("due_date")
+  paidAt           DateTime?      @map("paid_at")
+  paymentMethod    String?        @map("payment_method")
+  transactionRef   String?        @map("transaction_ref")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  customer         Customer       @relation(fields: [customerId], references: [id])
+  quotation        Quotation?     @relation(fields: [quotationId], references: [id])
+
+  @@map("invoices")
+}
+
+model DealHealthAlert {
+  id               String         @id @default(cuid())
+  quotationId      String         @map("quotation_id")
+  severity         AlertSeverity  @default(WARNING)
+  title            String
+  description      String
+  anomalyType      String         @map("anomaly_type")
+  isResolved       Boolean        @default(false) @map("is_resolved")
+  resolvedAt       DateTime?      @map("resolved_at")
+  createdAt        DateTime       @default(now()) @map("created_at")
+
+  quotation        Quotation      @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+
+  @@map("deal_health_alerts")
+}
+
+model UpsellRule {
+  id               String       @id @default(cuid())
+  name             String
+  triggerCategory  String       @map("trigger_category")
+  recommendedSku   String       @map("recommended_sku")
+  marginUplift     Float        @map("margin_uplift")
+  badge            String       @default("RECOMMENDED")
+  isActive         Boolean      @default(true) @map("is_active")
+  createdAt        DateTime     @default(now()) @map("created_at")
+
+  @@map("upsell_rules")
+}

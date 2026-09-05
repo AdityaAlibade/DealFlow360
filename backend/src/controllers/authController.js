@@ -217,13 +217,13 @@ const authController = {
       if (!updatedUser) {
         updatedUser = {
           id: req.user?.id || 'usr-cuid-9021',
-          fullName: req.body.fullName || 'John Doe',
-          email: req.user?.email || 'demo@dealflow.com',
-          role: req.user?.role || 'SALES_REP',
-          phone: req.body.phone || '+1 (555) 382-9104',
-          department: req.body.department || 'Enterprise Revenue & CPQ',
-          territory: req.body.territory || 'North America - Tech & Financial',
-          title: req.body.title || 'Senior Enterprise Sales Representative',
+          fullName: req.body.fullName || 'Aditya Alibade',
+          email: req.user?.email || 'adityaalibade1046@gmail.com',
+          role: req.user?.role || 'ADMIN',
+          phone: req.body.phone || '+91 98201 45678',
+          department: req.body.department || 'Platform Administration',
+          territory: req.body.territory || 'India & APAC Strategic Accounts',
+          title: req.body.title || 'Chief Revenue Systems Architect',
           bio: req.body.bio || '',
           updatedAt: new Date().toISOString()
         };

@@ -1,95 +1,203 @@
-// TODO: Product Controller
-// getAll, getById, create, update, delete
-// getCategories, addVariant, updateVariant, deleteVariant
-// getProductStock
-// Handle product catalog management
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 const productController = {
+  /**
+   * GET /api/products
+   */
   getAll: async (req, res, next) => {
-    // TODO: Retrieve active catalog products with pricing and variant counts
     try {
-      res.status(200).json({ success: true, data: [] });
+      const { category, search } = req.query;
+      const where = {};
+      if (category) where.category = category;
+      if (search) {
+        where.OR = [
+          { name: { contains: search, mode: 'insensitive' } },
+          { sku: { contains: search, mode: 'insensitive' } }
+        ];
+      }
+
+      const products = await prisma.product.findMany({
+        where,
+        include: {
+          variants: true,
+          stockLevels: { include: { warehouse: true } },
+          discountTiers: true
+        },
+        orderBy: { name: 'asc' }
+      });
+
+      res.status(200).json({ success: true, count: products.length, data: products });
     } catch (error) {
       next(error);
     }
   },
 
+  /**
+   * GET /api/products/:id
+   */
   getById: async (req, res, next) => {
-    // TODO: Fetch product configuration, tiered discounts, and variant attributes
     try {
-      res.status(200).json({ success: true, data: { id: req.params.id } });
+      const { id } = req.params;
+      const product = await prisma.product.findFirst({
+        where: { OR: [{ id }, { sku: id }] },
+        include: {
+          variants: true,
+          stockLevels: { include: { warehouse: true } },
+          discountTiers: true
+        }
+      });
+
+      if (!product) {
+        return res.status(404).json({ success: false, message: 'Product not found.' });
+      }
+
+      res.status(200).json({ success: true, data: product });
     } catch (error) {
       next(error);
     }
   },
 
+  /**
+   * POST /api/products
+   */
   create: async (req, res, next) => {
-    // TODO: Create new product SKU with standard pricing and cost baselines
     try {
-      res.status(201).json({ success: true, message: 'Product created' });
+      const { sku, name, description, category, basePrice, standardCost, taxRate = 18.0, unit = 'Units', isSubscription = false } = req.body;
+
+      if (!sku || !name || !category || basePrice === undefined) {
+        return res.status(400).json({ success: false, message: 'SKU, name, category, and basePrice are required.' });
+      }
+
+      const product = await prisma.product.create({
+        data: {
+          sku,
+          name,
+          description,
+          category,
+          basePrice: Number(basePrice),
+          standardCost: standardCost !== undefined ? Number(standardCost) : Number(basePrice) * 0.7,
+          taxRate: Number(taxRate),
+          unit,
+          isSubscription: Boolean(isSubscription)
+        }
+      });
+
+      res.status(201).json({ success: true, message: 'Product created successfully.', data: product });
     } catch (error) {
       next(error);
     }
   },
 
+  /**
+   * PUT /api/products/:id
+   */
   update: async (req, res, next) => {
-    // TODO: Update product parameters, category, or tax rates
     try {
-      res.status(200).json({ success: true, message: 'Product updated' });
+      const { id } = req.params;
+      const updated = await prisma.product.update({
+        where: { id },
+        data: req.body
+      });
+      res.status(200).json({ success: true, message: 'Product updated.', data: updated });
     } catch (error) {
       next(error);
     }
   },
 
+  /**
+   * DELETE /api/products/:id
+   */
   delete: async (req, res, next) => {
-    // TODO: Deactivate or soft-delete product SKU
     try {
-      res.status(200).json({ success: true, message: 'Product removed' });
+      const { id } = req.params;
+      await prisma.product.delete({ where: { id } });
+      res.status(200).json({ success: true, message: 'Product deleted.' });
     } catch (error) {
       next(error);
     }
   },
 
+  /**
+   * GET /api/products/categories
+   */
   getCategories: async (req, res, next) => {
-    // TODO: List distinct product categories
     try {
-      res.status(200).json({ success: true, categories: ['Hardware', 'Services', 'Subscription', 'Accessories'] });
+      const categories = await prisma.product.findMany({
+        distinct: ['category'],
+        select: { category: true }
+      });
+      res.status(200).json({
+        success: true,
+        categories: categories.map((c) => c.category)
+      });
     } catch (error) {
       next(error);
     }
   },
 
-  addVariant: async (req, res, next) => {
-    // TODO: Add SKU variant with price delta
-    try {
-      res.status(201).json({ success: true, message: 'Variant added' });
-    } catch (error) {
-      next(error);
-    }
-  },
-
-  updateVariant: async (req, res, next) => {
-    // TODO: Update variant pricing or specs
-    try {
-      res.status(200).json({ success: true, message: 'Variant updated' });
-    } catch (error) {
-      next(error);
-    }
-  },
-
-  deleteVariant: async (req, res, next) => {
-    // TODO: Remove product variant
-    try {
-      res.status(200).json({ success: true, message: 'Variant deleted' });
-    } catch (error) {
-      next(error);
-    }
-  },
-
+  /**
+   * GET /api/products/:id/stock
+   */
   getProductStock: async (req, res, next) => {
-    // TODO: Fetch real-time inventory on hand across all warehouse depots for product
     try {
-      res.status(200).json({ success: true, stock: [] });
+      const { id } = req.params;
+      const stock = await prisma.stockLevel.findMany({
+        where: { productId: id },
+        include: { warehouse: true }
+      });
+      res.status(200).json({ success: true, data: stock });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * POST /api/products/:id/variants
+   */
+  addVariant: async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const { name, sku, priceDelta = 0.0, attributes } = req.body;
+      const variant = await prisma.productVariant.create({
+        data: {
+          productId: id,
+          name,
+          sku,
+          priceDelta: Number(priceDelta),
+          attributes: attributes ? JSON.stringify(attributes) : null
+        }
+      });
+      res.status(201).json({ success: true, message: 'Variant created.', data: variant });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * PUT /api/products/:id/variants/:variantId
+   */
+  updateVariant: async (req, res, next) => {
+    try {
+      const { variantId } = req.params;
+      const updated = await prisma.productVariant.update({
+        where: { id: variantId },
+        data: req.body
+      });
+      res.status(200).json({ success: true, message: 'Variant updated.', data: updated });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * DELETE /api/products/:id/variants/:variantId
+   */
+  deleteVariant: async (req, res, next) => {
+    try {
+      const { variantId } = req.params;
+      await prisma.productVariant.delete({ where: { id: variantId } });
+      res.status(200).json({ success: true, message: 'Variant deleted.' });
     } catch (error) {
       next(error);
     }

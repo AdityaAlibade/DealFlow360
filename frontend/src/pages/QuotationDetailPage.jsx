@@ -124,22 +124,22 @@ const QuotationDetailPage = () => {
   const upsellItems = [
     {
       id: 'up-1',
-      name: 'Docking Station USB-C Dual 4K',
-      price: 180,
+      name: 'Docking Station Thunderbolt 4 Dual 4K',
+      price: 18500,
       margin: 42,
       badge: 'PROMO'
     },
     {
       id: 'up-2',
       name: 'Enterprise Cloud Storage Pro (5TB)',
-      price: 85,
+      price: 85000,
       margin: 85,
       badge: 'POPULAR'
     },
     {
       id: 'up-3',
-      name: 'Annual Care Plan Gold SLA',
-      price: 250,
+      name: 'Annual Care Plan Gold SLA (24/7)',
+      price: 25000,
       margin: 60,
       badge: 'HIGH MARGIN'
     }
@@ -402,7 +402,7 @@ const QuotationDetailPage = () => {
                           )}
                         </td>
                         <td className="px-3 py-3 text-center font-mono font-medium">{p.qty}</td>
-                        <td className="px-3 py-3 text-right font-mono font-medium">${p.price}</td>
+                        <td className="px-3 py-3 text-right font-mono font-medium">₹{Number(p.price).toLocaleString('en-IN')}</td>
                         <td className="px-3 py-3 text-center">
                           <span className={`font-mono font-bold ${isOver ? 'text-red-600' : 'text-slate-700'}`}>
                             {p.discount}%
@@ -464,7 +464,7 @@ const QuotationDetailPage = () => {
                       <Badge variant="primary" className="text-[9px] py-0">{item.badge}</Badge>
                       <h4 className="text-xs font-bold text-slate-800 mt-1">{item.name}</h4>
                     </div>
-                    <span className="text-xs font-bold text-slate-900">${item.price}</span>
+                    <span className="text-xs font-bold text-slate-900">₹{Number(item.price).toLocaleString('en-IN')}</span>
                   </div>
                   <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-200/60 text-[11px]">
                     <span className="text-emerald-600 font-semibold">+{item.margin}% margin uplift</span>
@@ -492,19 +492,19 @@ const QuotationDetailPage = () => {
           <div className="space-y-2 text-xs">
             <div className="flex justify-between py-1 border-b border-slate-100">
               <span className="text-slate-500">Gross Subtotal:</span>
-              <span className="font-semibold text-slate-800">${subtotal.toFixed(2)}</span>
+              <span className="font-semibold text-slate-800">₹{subtotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-slate-100 text-emerald-600 font-medium">
               <span>Total Discount Applied:</span>
-              <span>-${totalDiscount.toFixed(2)}</span>
+              <span>-₹{totalDiscount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-slate-100">
               <span className="text-slate-500">GST / Tax (18%):</span>
-              <span className="font-semibold text-slate-800">${tax.toFixed(2)}</span>
+              <span className="font-semibold text-slate-800">₹{tax.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
             </div>
             <div className="flex justify-between py-2 text-sm font-extrabold text-slate-900">
               <span>Net Payable Total:</span>
-              <span className="text-base text-[#a459a8]">${total.toFixed(2)}</span>
+              <span className="text-base text-[#a459a8]">₹{total.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
             </div>
           </div>
 

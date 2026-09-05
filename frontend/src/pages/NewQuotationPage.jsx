@@ -26,22 +26,22 @@ import quotationAPI from '../api/quotationAPI';
 
 // Available customer catalog based on DealFlow360 data model
 const CUSTOMERS = [
-  { id: 'CUST-001', name: 'Acme Corp', tier: 'GOLD', email: 'procurement@acme.com', maxDiscount: 20 },
-  { id: 'CUST-002', name: 'Beta Industries', tier: 'SILVER', email: 'orders@betaind.com', maxDiscount: 15 },
-  { id: 'CUST-003', name: 'Delta LLC', tier: 'BRONZE', email: 'sales@deltacorp.io', maxDiscount: 10 },
-  { id: 'CUST-004', name: 'Global Retail Ltd', tier: 'GOLD', email: 'buyer@globalretail.com', maxDiscount: 20 },
-  { id: 'CUST-005', name: 'Nova Retail', tier: 'BRONZE', email: 'inventory@novaretail.com', maxDiscount: 10 },
-  { id: 'CUST-006', name: 'Nexus Tech', tier: 'SILVER', email: 'purchasing@nexustech.org', maxDiscount: 15 }
+  { id: 'CUST-001', name: 'Tata Consultancy Services (TCS)', tier: 'GOLD', email: 'procurement@tcs.com', maxDiscount: 20 },
+  { id: 'CUST-002', name: 'Infosys Limited', tier: 'SILVER', email: 'procurement@infosys.com', maxDiscount: 15 },
+  { id: 'CUST-003', name: 'Reliance Digital Enterprises', tier: 'BRONZE', email: 'purchasing@reliancedigital.in', maxDiscount: 10 },
+  { id: 'CUST-004', name: 'Wipro Infotech Solutions', tier: 'GOLD', email: 'supply@wipro.com', maxDiscount: 20 },
+  { id: 'CUST-005', name: 'HDFC Bank Commercial Ops', tier: 'SILVER', email: 'finance.procure@hdfcbank.com', maxDiscount: 15 },
+  { id: 'CUST-006', name: 'Tech Mahindra Global', tier: 'SILVER', email: 'purchasing@techmahindra.com', maxDiscount: 15 }
 ];
 
 // Available product catalog based on DealFlow360 data model
 const PRODUCTS = [
-  { id: 'PRD-101', sku: 'HW-LTP-14', name: 'Laptop Pro 14', category: 'Hardware', basePrice: 1000, standardCost: 700, taxRate: 18, limit: 15 },
-  { id: 'PRD-102', sku: 'SV-OSS-01', name: 'Onsite Setup Service', category: 'Services', basePrice: 450, standardCost: 200, taxRate: 18, limit: 12 },
-  { id: 'PRD-103', sku: 'HW-DOC-02', name: 'Docking Station USB-C', category: 'Hardware', basePrice: 180, standardCost: 110, taxRate: 18, limit: 15 },
-  { id: 'PRD-104', sku: 'SB-CP3-03', name: 'Care Plan 3 years', category: 'Subscription', basePrice: 360, standardCost: 150, taxRate: 18, limit: 20 },
-  { id: 'PRD-105', sku: 'HW-SRV-04', name: 'Server Rack Enterprise', category: 'Hardware', basePrice: 3500, standardCost: 2400, taxRate: 18, limit: 10 },
-  { id: 'PRD-106', sku: 'SV-WAR-02', name: 'Extended Warranty (2 Years)', category: 'Services', basePrice: 180, standardCost: 75, taxRate: 18, limit: 15 }
+  { id: 'PRD-101', sku: 'HW-LTP-14', name: 'Enterprise Laptop Pro 14"', category: 'Hardware', basePrice: 150000, standardCost: 110000, taxRate: 18, limit: 15 },
+  { id: 'PRD-102', sku: 'SV-OSS-01', name: 'Onsite Setup & Deployment Service', category: 'Services', basePrice: 45000, standardCost: 20000, taxRate: 18, limit: 12 },
+  { id: 'PRD-103', sku: 'HW-DOC-02', name: 'Docking Station Thunderbolt 4', category: 'Hardware', basePrice: 18500, standardCost: 12000, taxRate: 18, limit: 15 },
+  { id: 'PRD-104', sku: 'SB-CP3-03', name: 'DealFlow360 CPQ Platform (Annual)', category: 'Subscription', basePrice: 350000, standardCost: 85000, taxRate: 18, limit: 20 },
+  { id: 'PRD-105', sku: 'HW-SRV-04', name: 'Enterprise UltraHD 4K Monitor 32"', category: 'Hardware', basePrice: 45000, standardCost: 32000, taxRate: 18, limit: 10 },
+  { id: 'PRD-106', sku: 'SV-WAR-02', name: 'Zero-Trust Security & Compliance Suite', category: 'Services', basePrice: 95000, standardCost: 25000, taxRate: 18, limit: 15 }
 ];
 
 const NewQuotationPage = () => {

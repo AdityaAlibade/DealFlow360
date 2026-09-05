@@ -32,9 +32,9 @@ const SubscriptionDetailPage = () => {
           </button>
           <div>
             <h1 className="text-xl font-extrabold text-slate-900">
-              Billing Detail: Acme Corp - <span className="text-[#a459a8]">Care Plan 2yr</span>
+              Billing Detail: Tata Consultancy Services (TCS) - <span className="text-[#a459a8]">Enterprise CPQ Platform</span>
             </h1>
-            <p className="text-xs text-slate-500">Contract Ref: {id || 'SUB-101'} &bull; Auto-renewal: Active</p>
+            <p className="text-xs text-slate-500">Contract Ref: {id || 'SUB-2026-881'} &bull; Auto-renewal: Active</p>
           </div>
         </div>
 

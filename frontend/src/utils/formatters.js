@@ -1,8 +1,11 @@
 // TODO: Implement currency, date, and percentage formatting helpers
 
-export const formatCurrency = (amount, currency = 'USD') => {
-  // TODO: Format numeric value as localized currency string
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount || 0);
+export const formatCurrency = (amount, currency = 'INR') => {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: currency,
+    maximumFractionDigits: 0
+  }).format(amount || 0);
 };
 
 export const formatDate = (dateString) => {

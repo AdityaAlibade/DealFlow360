@@ -7,7 +7,7 @@ const SalesDashboard = () => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MetricCard title="Total Pipeline" value="$1,245,800" change="+14.2%" />
+        <MetricCard title="Total Pipeline" value="₹4,25,80,000" change="+14.2%" />
         <MetricCard title="Active Quotations" value="38" change="+5" />
         <MetricCard title="Pending Approvals" value="6" change="-2" isUrgent />
         <MetricCard title="Avg Deal Margin" value="32.4%" change="+1.8%" />

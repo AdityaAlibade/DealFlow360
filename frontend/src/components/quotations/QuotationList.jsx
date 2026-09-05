@@ -21,8 +21,10 @@ const QuotationList = () => {
   ];
 
   const dummyData = [
-    { id: 'QT-2024-001', customer: 'Acme Global', total: '$45,000', status: 'Approved', statusVariant: 'success', date: '2024-05-01' },
-    { id: 'QT-2024-002', customer: 'Stark Industries', total: '$128,500', status: 'Pending Approval', statusVariant: 'warning', date: '2024-05-03' },
+    { id: 'Q-1042', customer: 'Tata Consultancy Services (TCS)', total: '₹10,03,000', status: 'Pending Approval', statusVariant: 'warning', date: '2026-09-01' },
+    { id: 'Q-1039', customer: 'Infosys Limited', total: '₹11,50,500', status: 'Approved', statusVariant: 'success', date: '2026-08-28' },
+    { id: 'Q-1035', customer: 'Reliance Digital Enterprises', total: '₹6,60,800', status: 'Confirmed', statusVariant: 'success', date: '2026-08-24' },
+    { id: 'Q-1045', customer: 'Wipro Infotech Solutions', total: '₹10,03,000', status: 'Negotiation', statusVariant: 'info', date: '2026-09-03' }
   ];
 
   return (

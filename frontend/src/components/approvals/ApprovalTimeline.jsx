@@ -3,10 +3,10 @@ import Card from '../common/Card';
 
 const ApprovalTimeline = ({ steps = [] }) => {
   const defaultSteps = [
-    { step: 'Quote Submitted', user: 'J. Rao (Sales Rep)', date: 'Aug 20, 2026', note: 'Initial 12% discount proposal', status: 'completed' },
-    { step: 'Sales Manager Review', user: 'M. Shah (Sales Manager)', date: 'Pending', note: 'Evaluating 18% service line concession', status: 'current' },
-    { step: 'Finance Sign-off', user: 'R. Iyer (Finance)', date: 'Scheduled', note: 'Conditional on blended margin > 30%', status: 'pending' },
-    { step: 'Customer Acceptance', user: 'Acme Corp', date: 'Upcoming', note: 'Contract execution', status: 'pending' }
+    { step: 'Quote Submitted', user: 'Rajesh Kumar (Sales Rep)', date: 'Aug 20, 2026', note: 'Initial 12% discount proposal', status: 'completed' },
+    { step: 'Sales Manager Review', user: 'Priya Sharma (Sales Manager)', date: 'Pending', note: 'Evaluating 18% service line concession', status: 'current' },
+    { step: 'Finance Sign-off', user: 'Vikram Malhotra (Finance Ops)', date: 'Scheduled', note: 'Conditional on blended margin > 30%', status: 'pending' },
+    { step: 'Customer Acceptance', user: 'Tata Consultancy Services (TCS)', date: 'Upcoming', note: 'Contract execution', status: 'pending' }
   ];
 
   const list = steps.length > 0 ? steps : defaultSteps;

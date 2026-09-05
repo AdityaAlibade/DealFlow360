@@ -18,7 +18,7 @@ const getTransporter = () => {
       port: config.smtp.port,
       secure: config.smtp.secure,
       auth: {
-        user: config.smtp.user,
+        user: config.smtp.user, 
         pass: config.smtp.pass
       }
     });

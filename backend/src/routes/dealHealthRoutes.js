@@ -10,6 +10,7 @@ const dealHealthController = require('../controllers/dealHealthController');
 const { verifyToken } = require('../middleware/auth');
 
 router.get('/', verifyToken, dealHealthController.getDashboard);
+router.get('/dashboard', verifyToken, dealHealthController.getDashboard);
 router.get('/alerts', verifyToken, dealHealthController.getAllAlerts);
 router.get('/alerts/:id', verifyToken, dealHealthController.getAlertById);
 router.put('/alerts/:id/resolve', verifyToken, dealHealthController.resolveAlert);

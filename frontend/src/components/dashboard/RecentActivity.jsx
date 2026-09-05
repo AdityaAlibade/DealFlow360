@@ -3,11 +3,11 @@ import Card from '../common/Card';
 
 const RecentActivity = ({ activities = [] }) => {
   const defaultActivities = [
-    { id: 1, text: 'Quote Q-1042 (Acme Corp) submitted for approval', time: '10 mins ago', user: 'J. Rao' },
-    { id: 2, text: 'Quote Q-1039 approved by Sales Manager', time: '45 mins ago', user: 'M. Shah' },
-    { id: 3, text: 'High discount alert flagged on Q-1045', time: '2 hours ago', user: 'Deal Sentinel' },
-    { id: 4, text: 'Invoice INV-1038 marked Paid (₹9,750)', time: '4 hours ago', user: 'Finance' },
-    { id: 5, text: 'Counter proposal received on Customer Portal Q-1030', time: '5 hours ago', user: 'Customer' },
+    { id: 1, text: 'Quote Q-1042 (Tata Consultancy Services) submitted for approval', time: '10 mins ago', user: 'Rajesh Kumar' },
+    { id: 2, text: 'Quote Q-1039 approved by Sales Manager', time: '45 mins ago', user: 'Priya Sharma' },
+    { id: 3, text: 'High discount alert flagged on Q-1045 (Wipro)', time: '2 hours ago', user: 'Deal Sentinel' },
+    { id: 4, text: 'Invoice INV-2026-101 marked Paid (₹10,03,000)', time: '4 hours ago', user: 'Vikram Malhotra' },
+    { id: 5, text: 'Counter proposal received on Customer Portal Q-1042', time: '5 hours ago', user: 'Ananya Deshmukh' },
   ];
 
   const items = activities.length > 0 ? activities : defaultActivities;

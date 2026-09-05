@@ -4,24 +4,57 @@ DealFlow360 closes the gap between deal negotiation, margin enforcement, fulfill
 
 ---
 
-## Getting Started
+## Getting Started & Running the Application
 
-### 1. Install Dependencies
+### Prerequisites
+- **Node.js**: v18+ installed
+- **PostgreSQL**: Running locally on port `5432` with a database named `dealFlowDb`
+
+---
+
+### 1. Backend Setup & Startup
+
+Open a terminal in the root directory:
+
 ```bash
-cd frontend
+# Navigate to the backend folder
+cd backend
+
+# Install dependencies
 npm install
+
+# Configure environment variables (create .env file)
+# Make sure DATABASE_URL points to your PostgreSQL instance
+# Example: DATABASE_URL="postgresql://postgres:password@localhost:5432/dealFlowDb?schema=public"
+
+# Synchronize database schema and seed initial demo data
+npx prisma db push
+npm run db:seed
+
+# Start the backend server (runs on http://localhost:5000)
+npm start
+# or for development mode with auto-reload:
+# npm run dev
 ```
 
-### 2. Configure Environment
-```bash
-cp .env.example .env
-```
+---
 
-### 3. Start Development Server
+### 2. Frontend Setup & Startup
+
+Open a **second terminal** in the root directory:
+
 ```bash
+# Navigate to the frontend folder
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start the React development server (runs on http://localhost:3000)
 npm start
 ```
-The application will launch on **http://localhost:3000**.
+
+The application will open automatically in your browser at **http://localhost:3000**.
 
 ---
 
@@ -31,11 +64,11 @@ DealFlow360 supports 5 distinct user roles. You can log in with any of the demo 
 
 | Role | Demo User Name | Demo Email | Password | Primary Responsibilities & Permissions |
 | :--- | :--- | :--- | :--- | :--- |
-| **Sales Rep** | John Doe | `john.rep@dealflow360.io` | `password123` | Builds quotes, applies item discounts, adds upsells, tracks fulfillment & customer counter-proposals |
-| **Sales Manager / Approver** | Sarah Jenkins | `sarah.manager@dealflow360.io` | `password123` | Level-1 discount approvals, configures discount tiers & approval chains, monitors Deal Health |
-| **Finance / Operations** | Marcus Vance | `marcus.finance@dealflow360.io` | `password123` | Level-2 high-risk margin approvals, warehouse split allocations, backorders & invoice reconciliation |
-| **Customer (Portal)** | Acme Corp Buyer | Portal URL (`/customer-portal/demo-token-123`) | N/A | External portal user reviewing quote online, countering terms & line discounts, digital sign-off |
-| **System Admin** | Alex Rivera | `alex.admin@dealflow360.io` | `password123` | Full backend management: catalog, price lists, discount tiers, warehouses, reports & admin overrides |
+| **System Admin** | Aditya Alibade | `adityaalibade1046@gmail.com` | `password123` | Full platform administration, catalog management, discount governance & global overrides |
+| **Sales Manager / Approver** | Priya Sharma | `salesmanager@dealflow360.com` | `password123` | Level-1 discount approvals, configures discount tiers & approval chains, monitors Deal Health |
+| **Sales Rep** | Rajesh Kumar | `salesrep@dealflow360.com` | `password123` | Builds CPQ quotations in INR (₹), applies item discounts, adds margin upsells, customer negotiation |
+| **Finance / Operations** | Vikram Malhotra | `financemanager@dealflow360.com` | `password123` | Level-2 high-risk margin approvals, multi-warehouse split allocations, GST invoice reconciliation |
+| **Customer (Portal)** | Ananya Deshmukh (Tata Digital) | Portal URL (`/customer-portal/demo-token-123`) | N/A | Reviewing quote online, counter-discount negotiation, requesting products, digital sign-off |
 
 ### Live Role Switching
 - **Top Header Bar**: Click on `Role: [Role Name]` pill in the header to trigger the live role selector dropdown.

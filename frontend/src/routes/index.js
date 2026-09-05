@@ -146,6 +146,22 @@ const AppRoutes = () => {
         }
       />
       <Route
+        path="/sales/warehouses"
+        element={
+          <ProtectedRoute allowedRoles={['sales_rep', 'sales_manager', 'admin']} requiredPermission={PERMISSIONS.FULFILLMENT_READ}>
+            <FulfillmentPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/sales/fulfillment"
+        element={
+          <ProtectedRoute allowedRoles={['sales_rep', 'sales_manager', 'admin']} requiredPermission={PERMISSIONS.FULFILLMENT_READ}>
+            <FulfillmentPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/sales/*"
         element={
           <ProtectedRoute allowedRoles={['sales_rep', 'sales_manager', 'admin']}>
@@ -184,6 +200,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute allowedRoles={['finance_ops', 'admin']} requiredPermission={PERMISSIONS.BILLING_READ}>
             <SubscriptionPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/finance/warehouses"
+        element={
+          <ProtectedRoute allowedRoles={['finance_ops', 'admin']} requiredPermission={PERMISSIONS.FULFILLMENT_READ}>
+            <FulfillmentPage />
           </ProtectedRoute>
         }
       />
@@ -267,7 +291,23 @@ const AppRoutes = () => {
         }
       />
 
-      {/* 6. Fulfillment */}
+      {/* 6. Warehouses & Fulfillment */}
+      <Route
+        path="/warehouses"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.FULFILLMENT_READ}>
+            <FulfillmentPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/warehouses/:id"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.FULFILLMENT_READ}>
+            <FulfillmentDetailPage />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/fulfillment"
         element={

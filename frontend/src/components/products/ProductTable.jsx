@@ -12,8 +12,10 @@ const ProductTable = () => {
   ];
 
   const dummyData = [
-    { sku: 'CLD-001', name: 'Enterprise Cloud Platform (Seat)', price: '$120.00', cost: '$40.00', margin: '66.7%' },
-    { sku: 'SRV-002', name: 'Dedicated Server Hardware', price: '$4,500.00', cost: '$3,100.00', margin: '31.1%' }
+    { sku: 'SKU-HW-LPT-14', name: 'Enterprise Laptop Pro 14"', price: '₹1,50,000', cost: '₹1,10,000', margin: '26.7%' },
+    { sku: 'SKU-HW-MON-4K', name: 'UltraHD 4K Executive Monitor 32"', price: '₹45,000', cost: '₹32,000', margin: '28.9%' },
+    { sku: 'SKU-ACC-DCK-01', name: 'Thunderbolt 4 Docking Station Pro', price: '₹18,500', cost: '₹12,000', margin: '35.1%' },
+    { sku: 'SKU-SFT-CPQ-YR', name: 'DealFlow360 Enterprise CPQ Platform', price: '₹3,50,000', cost: '₹85,000', margin: '75.7%' }
   ];
 
   return <Table columns={columns} data={dummyData} />;

@@ -13,7 +13,7 @@ const CustomerQuotationView = ({ token }) => {
         </div>
         <div className="flex justify-between items-center pt-2">
           <span className="text-base font-bold text-slate-800">Total Investment:</span>
-          <span className="text-2xl font-bold text-primary">$45,000.00</span>
+          <span className="text-2xl font-bold text-primary">₹10,03,000</span>
         </div>
         <div className="pt-4 flex gap-3">
           <Button variant="primary" className="w-full">

@@ -11,8 +11,8 @@ const ProductForm = ({ productId }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input label="Product Name" placeholder="Cloud Instance - Large" />
           <Input label="SKU" placeholder="SKU-CLD-LG" />
-          <Input label="Base Price ($)" type="number" placeholder="250.00" />
-          <Input label="Standard Cost ($)" type="number" placeholder="120.00" />
+          <Input label="Base Price (₹)" type="number" placeholder="150000" />
+          <Input label="Standard Cost (₹)" type="number" placeholder="110000" />
         </div>
         <Button variant="primary">Save Changes</Button>
       </form>

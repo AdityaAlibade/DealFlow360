@@ -30,9 +30,9 @@ const InvoiceDetailPage = () => {
           </button>
           <div>
             <h1 className="text-xl font-extrabold text-slate-900">
-              Invoice Detail: <span className="text-[#a459a8]">{id || 'INV-1042'}</span>
+              Invoice Detail: <span className="text-[#a459a8]">{id || 'INV-2026-101'}</span>
             </h1>
-            <p className="text-xs text-slate-500">Customer: Acme Corp &bull; Due Date: Sep 10, 2026</p>
+            <p className="text-xs text-slate-500">Customer: Tata Consultancy Services (TCS) &bull; Due Date: Sep 10, 2026</p>
           </div>
         </div>
 
@@ -64,7 +64,7 @@ const InvoiceDetailPage = () => {
           </div>
           <div className="text-right">
             <Badge variant="danger" dot className="text-xs px-3 py-1">🔴 Unpaid</Badge>
-            <p className="text-xs text-slate-400 mt-2 font-mono">Invoice #: {id || 'INV-1042'}</p>
+            <p className="text-xs text-slate-400 mt-2 font-mono">Invoice #: {id || 'INV-2026-101'}</p>
           </div>
         </div>
 
@@ -72,8 +72,8 @@ const InvoiceDetailPage = () => {
         <div className="py-6">
           <div className="mb-4">
             <span className="text-[10px] uppercase font-bold text-slate-400">Billed To:</span>
-            <h4 className="text-sm font-bold text-slate-800">Acme Corp</h4>
-            <p className="text-xs text-slate-500">Attn: R. Sharma, Mumbai, MH</p>
+            <h4 className="text-sm font-bold text-slate-800">Tata Consultancy Services (TCS)</h4>
+            <p className="text-xs text-slate-500">Attn: Ananya Deshmukh, Fort, Mumbai, MH</p>
           </div>
 
           <table className="min-w-full divide-y divide-slate-200 text-xs">

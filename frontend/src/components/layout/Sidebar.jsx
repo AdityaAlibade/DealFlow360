@@ -21,7 +21,7 @@ const allNavItems = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, permission: null },
   { label: 'Quotations', path: '/quotations', icon: FileText, permission: PERMISSIONS.QUOTATION_READ },
   { label: 'Approvals', path: '/approvals', icon: CheckCircle2, permission: PERMISSIONS.APPROVAL_READ },
-  { label: 'Fulfillment', path: '/fulfillment', icon: Package, permission: PERMISSIONS.FULFILLMENT_READ },
+  { label: 'Warehouses', path: '/warehouses', icon: Package, permission: PERMISSIONS.FULFILLMENT_READ },
   { label: 'Subscriptions', path: '/subscriptions', icon: Repeat, permission: PERMISSIONS.BILLING_READ },
   { label: 'Invoices', path: '/invoices', icon: CreditCard, permission: PERMISSIONS.INVOICE_READ },
   { label: 'Deal Health', path: '/deal-health', icon: Activity, permission: PERMISSIONS.DEAL_HEALTH_READ },

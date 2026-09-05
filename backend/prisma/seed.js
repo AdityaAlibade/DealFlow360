@@ -4,7 +4,7 @@ const bcrypt = require('bcrypt');
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('[DealFlow360 Seed] Starting database seeding...');
+  console.log('[DealFlow360 Seed] Starting database seeding with multi-warehouse orders & INR...');
 
   // 1. Password hashing for all users
   const saltRounds = 10;
@@ -15,10 +15,15 @@ async function main() {
   console.log('[DealFlow360 Seed] Cleaning up existing tables...');
   await prisma.dealHealthAlert.deleteMany({});
   await prisma.fulfillmentSplit.deleteMany({});
+  await prisma.fulfillmentItem.deleteMany({});
   await prisma.fulfillment.deleteMany({});
+  await prisma.backorderItem.deleteMany({});
+  await prisma.backorder.deleteMany({});
+  await prisma.invoice.deleteMany({});
+  await prisma.orderItem.deleteMany({});
+  await prisma.order.deleteMany({});
   await prisma.approval.deleteMany({});
   await prisma.quotationItem.deleteMany({});
-  await prisma.invoice.deleteMany({});
   await prisma.subscription.deleteMany({});
   await prisma.quotation.deleteMany({});
   await prisma.discountTier.deleteMany({});
@@ -31,83 +36,135 @@ async function main() {
   await prisma.upsellRule.deleteMany({});
 
   // ---------------------------------------------------------
-  // 1. SEED 5 PRIMARY USERS (1 user per role)
+  // 1. SEED 5 PRIMARY USERS (1 user per role with Indian identity)
   // ---------------------------------------------------------
   console.log('[DealFlow360 Seed] Seeding 5 primary user credentials (1 per role)...');
 
   const users = await Promise.all([
-    // Role 1: System Admin (Only 1)
+    // Role 1: System Admin (Aditya Alibade)
     prisma.user.create({
       data: {
         id: 'usr-admin-01',
         email: 'adityaalibade1046@gmail.com',
         password: hashedPassword,
-        fullName: 'Alex Rivera',
+        fullName: 'Aditya Alibade',
         role: 'ADMIN',
-        phone: '+1 (555) 901-2847',
+        phone: '+91 98201 45678',
         department: 'Platform Administration',
         title: 'Chief Revenue Systems Architect',
-        avatar: 'AD'
+        avatar: 'AA'
       }
     }),
 
-    // Role 2: Sales Manager (Only 1)
+    // Role 2: Sales Manager (Priya Sharma)
     prisma.user.create({
       data: {
         id: 'usr-mgr-02',
         email: 'salesmanager@dealflow360.com',
         password: hashedPassword,
-        fullName: 'Sarah Jenkins',
+        fullName: 'Priya Sharma',
         role: 'SALES_MANAGER',
-        phone: '+1 (555) 392-8172',
+        phone: '+91 98112 34567',
         department: 'Sales Leadership',
         title: 'Regional VP of Sales & Deal Governance',
-        avatar: 'SM'
+        avatar: 'PS'
       }
     }),
 
-    // Role 3: Sales Rep (Only 1)
+    // Role 3: Sales Rep (Rajesh Kumar)
     prisma.user.create({
       data: {
         id: 'usr-rep-03',
         email: 'salesrep@dealflow360.com',
         password: hashedPassword,
-        fullName: 'John Doe',
+        fullName: 'Rajesh Kumar',
         role: 'SALES_REP',
-        phone: '+1 (555) 382-9104',
+        phone: '+91 98450 12345',
         department: 'Enterprise Sales',
         title: 'Senior Enterprise Account Executive',
-        avatar: 'SR'
+        avatar: 'RK'
       }
     }),
 
-    // Role 4: Finance / Operations Manager (Only 1)
+    // Role 4: Finance / Operations Manager (Vikram Malhotra)
     prisma.user.create({
       data: {
         id: 'usr-fin-04',
         email: 'financemanager@dealflow360.com',
         password: hashedPassword,
-        fullName: 'Marcus Vance',
+        fullName: 'Vikram Malhotra',
         role: 'FINANCE_OPS',
-        phone: '+1 (555) 714-2901',
+        phone: '+91 98765 43210',
         department: 'Finance & Operations',
         title: 'Director of Revenue Governance & Margin Control',
-        avatar: 'FM'
+        avatar: 'VM'
       }
     }),
 
-    // Role 5: Customer Portal Account (Only 1)
+    // Role 5: Customer Portal Account (Ananya Deshmukh - Tata Digital)
     prisma.user.create({
       data: {
         id: 'usr-cust-05',
         email: 'customer@dealflow360.com',
         password: hashedPassword,
-        fullName: 'Acme Corp Buyer',
+        fullName: 'Ananya Deshmukh',
         role: 'CUSTOMER',
-        phone: '+1 (555) 629-1049',
-        department: 'Client Procurement',
-        title: 'VP Global Strategic Sourcing',
-        avatar: 'CU'
+        phone: '+91 98334 56789',
+        department: 'Strategic Procurement',
+        title: 'VP Global Strategic Sourcing (Tata Digital)',
+        avatar: 'AD'
+      }
+    }),
+
+    // Controlled Audit Test Users
+    prisma.user.create({
+      data: {
+        id: 'usr-test-admin',
+        email: 'admin.test@dealflow360.com',
+        password: hashedPassword,
+        fullName: 'Test Admin',
+        role: 'ADMIN',
+        avatar: 'TA'
+      }
+    }),
+    prisma.user.create({
+      data: {
+        id: 'usr-test-mgr',
+        email: 'salesmanager.test@dealflow360.com',
+        password: hashedPassword,
+        fullName: 'Test Sales Manager',
+        role: 'SALES_MANAGER',
+        avatar: 'SM'
+      }
+    }),
+    prisma.user.create({
+      data: {
+        id: 'usr-test-rep',
+        email: 'salesrep.test@dealflow360.com',
+        password: hashedPassword,
+        fullName: 'Test Sales Rep',
+        role: 'SALES_REP',
+        avatar: 'SR'
+      }
+    }),
+    prisma.user.create({
+      data: {
+        id: 'usr-test-fin',
+        email: 'financemanager.test@dealflow360.com',
+        password: hashedPassword,
+        fullName: 'Test Finance Manager',
+        role: 'FINANCE_OPS',
+        avatar: 'FM'
+      }
+    }),
+    prisma.user.create({
+      data: {
+        id: 'usr-test-cust',
+        email: 'customer.test@example.com',
+        password: hashedPassword,
+        fullName: 'Test Customer',
+        role: 'CUSTOMER',
+        avatar: 'TC'
       }
     })
   ]);
@@ -115,76 +172,89 @@ async function main() {
   console.log(`[DealFlow360 Seed] Created ${users.length} user accounts with password: "${defaultPassword}"`);
 
   // ---------------------------------------------------------
-  // 2. SEED CUSTOMERS
+  // 2. SEED INDIAN ENTERPRISE CUSTOMERS
   // ---------------------------------------------------------
-  console.log('[DealFlow360 Seed] Seeding Enterprise Customers...');
-  const customerAcme = await prisma.customer.create({
+  console.log('[DealFlow360 Seed] Seeding Indian Enterprise Customers...');
+  const customerTCS = await prisma.customer.create({
     data: {
-      id: 'cust-acme-01',
-      name: 'Acme Global Corporation',
-      companyName: 'Acme Corp',
-      email: 'buyer@acmecorp.com',
-      phone: '+1 (555) 201-9000',
+      id: 'cust-tcs-01',
+      name: 'Tata Consultancy Services (TCS)',
+      companyName: 'TCS Enterprise Solutions Ltd',
+      email: 'procurement@tcs.com',
+      phone: '+91 (22) 6778-9999',
       tier: 'GOLD',
-      billingAddress: '100 Silicon Ave, Suite 500, San Jose, CA 95110',
-      shippingAddress: '450 Tech Distribution Center, Fremont, CA 94538'
+      billingAddress: 'TCS House, Raveline Street, Fort, Mumbai, MH 400001',
+      shippingAddress: 'TCS Olympus, Hiranandani Estate, Thane, MH 400607'
     }
   });
 
-  const customerBeta = await prisma.customer.create({
+  const customerInfosys = await prisma.customer.create({
     data: {
-      id: 'cust-beta-02',
-      name: 'Beta Industries International',
-      companyName: 'Beta Industries',
-      email: 'procurement@betaindustries.com',
-      phone: '+1 (555) 482-1923',
+      id: 'cust-infy-02',
+      name: 'Infosys Limited',
+      companyName: 'Infosys Technologies',
+      email: 'procurement@infosys.com',
+      phone: '+91 (80) 2852-0261',
       tier: 'SILVER',
-      billingAddress: '782 Industrial Pkwy, Chicago, IL 60607',
-      shippingAddress: '782 Industrial Pkwy, Dock 4, Chicago, IL 60607'
+      billingAddress: '44 Infosys Drive, Electronics City, Bengaluru, KA 560100',
+      shippingAddress: 'Infosys Campus, Gate 4, Electronics City, Bengaluru, KA 560100'
     }
   });
 
-  const customerNova = await prisma.customer.create({
+  const customerReliance = await prisma.customer.create({
     data: {
-      id: 'cust-nova-03',
-      name: 'Nova Retail Technologies',
-      companyName: 'Nova Retail',
-      email: 'purchasing@novaretail.io',
-      phone: '+1 (555) 791-4455',
+      id: 'cust-rel-03',
+      name: 'Reliance Digital Enterprises',
+      companyName: 'Reliance Industries Ltd',
+      email: 'purchasing@reliancedigital.in',
+      phone: '+91 (22) 4477-0000',
       tier: 'BRONZE',
-      billingAddress: '310 Commerce Blvd, Austin, TX 78701',
-      shippingAddress: '12 Logistics Way, Round Rock, TX 78664'
+      billingAddress: 'Reliance Corporate Park, Thane-Belapur Rd, Navi Mumbai, MH 400701',
+      shippingAddress: 'RCP Logistics Hub, Gate 2, Ghansoli, Navi Mumbai, MH 400701'
     }
   });
 
-  const customerApex = await prisma.customer.create({
+  const customerWipro = await prisma.customer.create({
     data: {
-      id: 'cust-apex-04',
-      name: 'Apex Dynamics Corp',
-      companyName: 'Apex Dynamics',
-      email: 'supply@apexdynamics.com',
-      phone: '+1 (555) 670-3321',
+      id: 'cust-wip-04',
+      name: 'Wipro Infotech Solutions',
+      companyName: 'Wipro Enterprises Ltd',
+      email: 'supply@wipro.com',
+      phone: '+91 (80) 2844-0011',
       tier: 'GOLD',
-      billingAddress: '55 Wall St, Financial District, New York, NY 10005',
-      shippingAddress: '88 Harbor Terminal, Jersey City, NJ 07305'
+      billingAddress: 'Doddakannelli, Sarjapur Road, Bengaluru, KA 560035',
+      shippingAddress: 'Wipro SEZ Logistics Depot, Sarjapur Rd, Bengaluru, KA 560035'
     }
   });
 
-  const customerGlobal = await prisma.customer.create({
+  const customerHDFC = await prisma.customer.create({
     data: {
-      id: 'cust-global-05',
-      name: 'Global Logistics Alliance',
-      companyName: 'Global Logistics',
-      email: 'finance@globallogistics.com',
-      phone: '+1 (555) 912-8800',
+      id: 'cust-hdfc-05',
+      name: 'HDFC Bank Commercial Ops',
+      companyName: 'HDFC Bank Ltd',
+      email: 'finance.procure@hdfcbank.com',
+      phone: '+91 (22) 6652-1000',
       tier: 'SILVER',
-      billingAddress: '400 Peachtree St, Atlanta, GA 30308',
-      shippingAddress: '1000 Airport Freight Rd, Atlanta, GA 30320'
+      billingAddress: 'HDFC Bank House, Senapati Bapat Marg, Lower Parel, Mumbai, MH 400013',
+      shippingAddress: 'HDFC Operations Center, Kanjurmarg East, Mumbai, MH 400042'
+    }
+  });
+
+  const customerTest = await prisma.customer.create({
+    data: {
+      id: 'cust-test-01',
+      name: 'Test Customer',
+      companyName: 'Test Enterprises Ltd',
+      email: 'customer.test@example.com',
+      phone: '+91 (22) 5555-0101',
+      tier: 'SILVER',
+      billingAddress: '100 Test Blvd, Cyber City, Mumbai, MH 400001',
+      shippingAddress: '100 Test Blvd, Delivery Gate 1, Mumbai, MH 400001'
     }
   });
 
   // ---------------------------------------------------------
-  // 3. SEED WAREHOUSES
+  // 3. SEED WAREHOUSES & LOGISTICS HUBS
   // ---------------------------------------------------------
   console.log('[DealFlow360 Seed] Seeding Warehouses & Fulfillment Hubs...');
   const whBom = await prisma.warehouse.create({
@@ -192,7 +262,8 @@ async function main() {
       id: 'wh-bom-01',
       code: 'BOM-1',
       name: 'Central Fulfillment Hub Mumbai',
-      location: 'Bhiwandi Logistics Park, Mumbai, MH'
+      location: 'Bhiwandi Logistics Park, Mumbai, MH',
+      status: 'ACTIVE'
     }
   });
 
@@ -201,7 +272,8 @@ async function main() {
       id: 'wh-ccu-02',
       code: 'CCU-1',
       name: 'East Regional Depot Kolkata',
-      location: 'Dankuni Industrial Hub, Kolkata, WB'
+      location: 'Dankuni Industrial Hub, Kolkata, WB',
+      status: 'ACTIVE'
     }
   });
 
@@ -210,7 +282,8 @@ async function main() {
       id: 'wh-blr-03',
       code: 'BLR-1',
       name: 'South Tech Distribution Hub',
-      location: 'Electronic City Logistics Center, Bengaluru, KA'
+      location: 'Electronic City Logistics Center, Bengaluru, KA',
+      status: 'ACTIVE'
     }
   });
 
@@ -219,14 +292,46 @@ async function main() {
       id: 'wh-del-04',
       code: 'DEL-1',
       name: 'North Regional Depot Delhi NCR',
-      location: 'Manesar Cargo Hub, Gurgaon, HR'
+      location: 'Manesar Cargo Hub, Gurgaon, HR',
+      status: 'ACTIVE'
+    }
+  });
+
+  // Test Warehouses (WH-A, WH-B, WH-C)
+  const whA = await prisma.warehouse.create({
+    data: {
+      id: 'wh-test-a',
+      code: 'WH-A',
+      name: 'Warehouse A',
+      location: 'Logistics Depot A, Industrial Sector 1',
+      status: 'ACTIVE'
+    }
+  });
+
+  const whB = await prisma.warehouse.create({
+    data: {
+      id: 'wh-test-b',
+      code: 'WH-B',
+      name: 'Warehouse B',
+      location: 'Logistics Depot B, Industrial Sector 2',
+      status: 'ACTIVE'
+    }
+  });
+
+  const whC = await prisma.warehouse.create({
+    data: {
+      id: 'wh-test-c',
+      code: 'WH-C',
+      name: 'Warehouse C',
+      location: 'Logistics Depot C, Industrial Sector 3',
+      status: 'ACTIVE'
     }
   });
 
   // ---------------------------------------------------------
-  // 4. SEED PRODUCTS & VARIANTS
+  // 4. SEED PRODUCTS & VARIANTS (Priced in INR ₹)
   // ---------------------------------------------------------
-  console.log('[DealFlow360 Seed] Seeding Product Catalog & Variants...');
+  console.log('[DealFlow360 Seed] Seeding Product Catalog & Variants in INR...');
 
   const prodLaptop = await prisma.product.create({
     data: {
@@ -303,8 +408,8 @@ async function main() {
       name: 'Ergonomic Thunderbolt 4 Docking Station Pro',
       description: 'Quad-display 40Gbps enterprise dock with 100W PD, Gigabit Ethernet, and 6 USB-A/C ports.',
       category: 'Accessories',
-      basePrice: 12500.0,
-      standardCost: 7200.0,
+      basePrice: 18500.0,
+      standardCost: 12000.0,
       taxRate: 18.0,
       unit: 'Units',
       isSubscription: false
@@ -318,8 +423,8 @@ async function main() {
       name: 'DealFlow360 Enterprise CPQ Platform License',
       description: 'Annual enterprise multi-seat subscription for guided quoting, governance approvals, split fulfillments, and revenue recognition.',
       category: 'Subscription',
-      basePrice: 95000.0,
-      standardCost: 25000.0,
+      basePrice: 350000.0,
+      standardCost: 85000.0,
       taxRate: 18.0,
       unit: 'Seats/Year',
       isSubscription: true
@@ -333,10 +438,10 @@ async function main() {
       name: 'Cloud Infrastructure Care & 24/7 SLA',
       description: 'Dedicated TAM (Technical Account Manager), 99.99% uptime guarantee, 15-minute emergency response SLA.',
       category: 'Subscription',
-      basePrice: 24000.0,
-      standardCost: 8000.0,
+      basePrice: 120000.0,
+      standardCost: 40000.0,
       taxRate: 18.0,
-      unit: 'Month',
+      unit: 'Year',
       isSubscription: true
     }
   });
@@ -348,10 +453,10 @@ async function main() {
       name: 'Zero-Trust Security & Compliance Suite',
       description: 'Automated SOC2 compliance monitoring, SIEM log forwarding, biometric MFA enforcement.',
       category: 'Subscription',
-      basePrice: 36000.0,
-      standardCost: 12000.0,
+      basePrice: 95000.0,
+      standardCost: 25000.0,
       taxRate: 18.0,
-      unit: 'Month',
+      unit: 'Year',
       isSubscription: true
     }
   });
@@ -363,38 +468,148 @@ async function main() {
       name: 'White-Glove Onsite Migration & Deployment',
       description: 'Onsite certified engineers for network architecture, ERP synchronization, employee onboarding, and turnkey rollout.',
       category: 'Services',
-      basePrice: 65000.0,
-      standardCost: 30000.0,
+      basePrice: 250000.0,
+      standardCost: 120000.0,
       taxRate: 18.0,
       unit: 'Engagements',
       isSubscription: false
     }
   });
 
+  // Controlled Audit Products (Product A, Product B, Product C)
+  const prodA = await prisma.product.create({
+    data: {
+      id: 'prod-test-a',
+      sku: 'SKU-PROD-A',
+      name: 'Product A',
+      description: 'Controlled Test Product A (₹1,000)',
+      category: 'Hardware',
+      basePrice: 1000.0,
+      standardCost: 700.0,
+      taxRate: 18.0,
+      unit: 'Units',
+      isSubscription: false
+    }
+  });
+
+  const prodB = await prisma.product.create({
+    data: {
+      id: 'prod-test-b',
+      sku: 'SKU-PROD-B',
+      name: 'Product B',
+      description: 'Controlled Test Product B (₹2,000)',
+      category: 'Hardware',
+      basePrice: 2000.0,
+      standardCost: 1400.0,
+      taxRate: 18.0,
+      unit: 'Units',
+      isSubscription: false
+    }
+  });
+
+  const prodC = await prisma.product.create({
+    data: {
+      id: 'prod-test-c',
+      sku: 'SKU-PROD-C',
+      name: 'Product C',
+      description: 'Controlled Test Product C (₹500)',
+      category: 'Accessories',
+      basePrice: 500.0,
+      standardCost: 350.0,
+      taxRate: 18.0,
+      unit: 'Units',
+      isSubscription: false
+    }
+  });
+
   // ---------------------------------------------------------
-  // 5. SEED STOCK LEVELS
+  // 5. SEED STOCK LEVELS (Deterministic levels for test scenarios)
   // ---------------------------------------------------------
   console.log('[DealFlow360 Seed] Seeding Real-Time Warehouse Stock Levels...');
   const stockData = [
-    { productId: prodLaptop.id, warehouseId: whBom.id, inStock: 120, reserved: 25, available: 95 },
-    { productId: prodLaptop.id, warehouseId: whCcu.id, inStock: 45, reserved: 10, available: 35 },
-    { productId: prodLaptop.id, warehouseId: whBlr.id, inStock: 80, reserved: 15, available: 65 },
-    { productId: prodLaptop.id, warehouseId: whDel.id, inStock: 60, reserved: 5, available: 55 },
+    // Laptop: BOM-1 has 6, BLR-1 has 4 available (Perfect for 10-unit split)
+    { productId: prodLaptop.id, warehouseId: whBom.id, inStock: 30, reserved: 6, available: 24, incoming: 10, backordered: 0 },
+    { productId: prodLaptop.id, warehouseId: whCcu.id, inStock: 5, reserved: 0, available: 5, incoming: 0, backordered: 0 },
+    { productId: prodLaptop.id, warehouseId: whBlr.id, inStock: 20, reserved: 4, available: 16, incoming: 15, backordered: 0 },
+    { productId: prodLaptop.id, warehouseId: whDel.id, inStock: 10, reserved: 0, available: 10, incoming: 5, backordered: 0 },
 
-    { productId: prodMonitor.id, warehouseId: whBom.id, inStock: 90, reserved: 20, available: 70 },
-    { productId: prodMonitor.id, warehouseId: whCcu.id, inStock: 30, reserved: 5, available: 25 },
-    { productId: prodMonitor.id, warehouseId: whBlr.id, inStock: 50, reserved: 10, available: 40 },
-    { productId: prodMonitor.id, warehouseId: whDel.id, inStock: 40, reserved: 8, available: 32 },
+    // Monitor: BOM-1 has 6, others have 0 available (For 6 fulfilled + 4 backorder scenario)
+    { productId: prodMonitor.id, warehouseId: whBom.id, inStock: 25, reserved: 6, available: 19, incoming: 20, backordered: 4 },
+    { productId: prodMonitor.id, warehouseId: whCcu.id, inStock: 0, reserved: 0, available: 0, incoming: 0, backordered: 0 },
+    { productId: prodMonitor.id, warehouseId: whBlr.id, inStock: 0, reserved: 0, available: 0, incoming: 10, backordered: 0 },
+    { productId: prodMonitor.id, warehouseId: whDel.id, inStock: 0, reserved: 0, available: 0, incoming: 0, backordered: 0 },
 
-    { productId: prodDock.id, warehouseId: whBom.id, inStock: 250, reserved: 40, available: 210 },
-    { productId: prodDock.id, warehouseId: whCcu.id, inStock: 80, reserved: 15, available: 65 },
-    { productId: prodDock.id, warehouseId: whBlr.id, inStock: 140, reserved: 20, available: 120 },
-    { productId: prodDock.id, warehouseId: whDel.id, inStock: 110, reserved: 10, available: 100 }
+    // Dock: BOM-1 (3), BLR-1 (4), DEL-1 (2) -> 9 available, 1 backordered
+    { productId: prodDock.id, warehouseId: whBom.id, inStock: 50, reserved: 3, available: 47, incoming: 20, backordered: 1 },
+    { productId: prodDock.id, warehouseId: whCcu.id, inStock: 0, reserved: 0, available: 0, incoming: 0, backordered: 0 },
+    { productId: prodDock.id, warehouseId: whBlr.id, inStock: 35, reserved: 4, available: 31, incoming: 15, backordered: 0 },
+    { productId: prodDock.id, warehouseId: whDel.id, inStock: 20, reserved: 2, available: 18, incoming: 10, backordered: 0 },
+
+    // Controlled Audit Test Stock Levels:
+    // Warehouse A: Product A = 6, Product B = 10, Product C = 20
+    { productId: prodA.id, warehouseId: whA.id, inStock: 6, reserved: 0, available: 6, incoming: 0, backordered: 0 },
+    { productId: prodB.id, warehouseId: whA.id, inStock: 10, reserved: 0, available: 10, incoming: 0, backordered: 0 },
+    { productId: prodC.id, warehouseId: whA.id, inStock: 20, reserved: 0, available: 20, incoming: 0, backordered: 0 },
+
+    // Warehouse B: Product A = 4, Product B = 0, Product C = 10
+    { productId: prodA.id, warehouseId: whB.id, inStock: 4, reserved: 0, available: 4, incoming: 0, backordered: 0 },
+    { productId: prodB.id, warehouseId: whB.id, inStock: 0, reserved: 0, available: 0, incoming: 0, backordered: 0 },
+    { productId: prodC.id, warehouseId: whB.id, inStock: 10, reserved: 0, available: 10, incoming: 0, backordered: 0 },
+
+    // Warehouse C: Product A = 0, Product B = 5, Product C = 0
+    { productId: prodA.id, warehouseId: whC.id, inStock: 0, reserved: 0, available: 0, incoming: 0, backordered: 0 },
+    { productId: prodB.id, warehouseId: whC.id, inStock: 5, reserved: 0, available: 5, incoming: 0, backordered: 0 },
+    { productId: prodC.id, warehouseId: whC.id, inStock: 0, reserved: 0, available: 0, incoming: 0, backordered: 0 }
   ];
 
   for (const s of stockData) {
     await prisma.stockLevel.create({ data: s });
   }
+
+  // ---------------------------------------------------------
+  // 5.5 SEED SUBSCRIPTION PLANS
+  // ---------------------------------------------------------
+  console.log('[DealFlow360 Seed] Seeding Subscription Plans...');
+  await prisma.subscriptionPlan.createMany({
+    data: [
+      {
+        slug: 'starter',
+        name: 'Starter Plan',
+        description: 'Standard CPQ quoting, single-depot dispatch, 5 users',
+        price: 4999.0,
+        billingCycle: 'MONTHLY',
+        trialDays: 14,
+        maxQuotes: 25,
+        maxUsers: 5,
+        features: JSON.stringify(['basic_cpq', 'standard_invoices', 'single_warehouse']),
+        isActive: true
+      },
+      {
+        slug: 'pro',
+        name: 'Professional Plan',
+        description: 'Multi-warehouse auto-split, backorders queue, deal health analytics',
+        price: 19999.0,
+        billingCycle: 'MONTHLY',
+        trialDays: 14,
+        maxQuotes: 200,
+        maxUsers: 25,
+        features: JSON.stringify(['basic_cpq', 'standard_invoices', 'multi_warehouse', 'deal_health', 'backorders']),
+        isActive: true
+      },
+      {
+        slug: 'enterprise',
+        name: 'Enterprise Revenue Engine',
+        description: 'Unlimited CPQ, automated risk governance, AI upsell intelligence',
+        price: 49999.0,
+        billingCycle: 'MONTHLY',
+        trialDays: 30,
+        maxQuotes: 999999,
+        maxUsers: 999,
+        features: JSON.stringify(['basic_cpq', 'standard_invoices', 'multi_warehouse', 'deal_health', 'backorders', 'ai_intelligence', 'unlimited_rbac']),
+        isActive: true
+      }
+    ]
+  });
 
   // ---------------------------------------------------------
   // 6. SEED DISCOUNT TIERS
@@ -447,22 +662,21 @@ async function main() {
   });
 
   // ---------------------------------------------------------
-  // 8. SEED QUOTATIONS & LINE ITEMS
+  // 8. SEED QUOTATIONS
   // ---------------------------------------------------------
-  console.log('[DealFlow360 Seed] Seeding Enterprise Quotations & Items...');
+  console.log('[DealFlow360 Seed] Seeding Enterprise Quotations & Items in INR...');
 
-  // Quotation 1: Q-1042 (Pending Approval with Acme Corp)
   const q1042 = await prisma.quotation.create({
     data: {
       quoteNumber: 'Q-1042',
-      customerId: customerAcme.id,
+      customerId: customerTCS.id,
       salesRepId: 'usr-rep-03',
-      status: 'PENDING_APPROVAL',
-      subtotal: 620000.0,
-      totalDiscount: 62000.0,
-      taxAmount: 100440.0,
-      totalAmount: 658440.0,
-      blendedMargin: 26.8,
+      status: 'APPROVED',
+      subtotal: 935000.0,
+      totalDiscount: 85000.0,
+      taxAmount: 153000.0,
+      totalAmount: 1003000.0,
+      blendedMargin: 28.5,
       blendedRiskScore: 32.5,
       portalToken: 'demo-token-123',
       expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
@@ -491,11 +705,11 @@ async function main() {
           {
             productId: prodCPQSub.id,
             quantity: 1,
-            unitPrice: 95000.0,
+            unitPrice: 350000.0,
             discountPercent: 5.0,
             allowedLimit: 15.0,
-            netPrice: 90250.0,
-            marginPercent: 72.0,
+            netPrice: 332500.0,
+            marginPercent: 74.0,
             isOverLimit: false
           }
         ]
@@ -503,188 +717,340 @@ async function main() {
     }
   });
 
-  // Quotation 2: Q-1039 (Approved Cloud & Support Migration for Beta Industries)
   const q1039 = await prisma.quotation.create({
     data: {
       quoteNumber: 'Q-1039',
-      customerId: customerBeta.id,
+      customerId: customerInfosys.id,
       salesRepId: 'usr-rep-03',
       status: 'APPROVED',
-      subtotal: 410000.0,
-      totalDiscount: 35000.0,
-      taxAmount: 67500.0,
-      totalAmount: 442500.0,
-      blendedMargin: 31.5,
+      subtotal: 1070000.0,
+      totalDiscount: 95000.0,
+      taxAmount: 175500.0,
+      totalAmount: 1150500.0,
+      blendedMargin: 33.2,
       blendedRiskScore: 14.0,
-      portalToken: 'portal-beta-1039',
-      expiresAt: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000),
+      portalToken: 'portal-infosys-1039',
+      expiresAt: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000)
+    }
+  });
+
+  // ---------------------------------------------------------
+  // 9. SEED BUSINESS SCENARIOS FOR ORDERS, MULTI-WAREHOUSE FULFILLMENTS & BACKORDERS
+  // ---------------------------------------------------------
+  console.log('[DealFlow360 Seed] Seeding Multi-Warehouse Customer Orders (Cases 1, 2, 3)...');
+
+  // =========================================================
+  // SCENARIO 1: ORDER #1001 — MULTI-WAREHOUSE SPLIT (10 Laptops: WH A -> 6, WH B -> 4)
+  // =========================================================
+  const order1001 = await prisma.order.create({
+    data: {
+      orderNumber: 'ORD-1001',
+      customerId: customerTCS.id,
+      quotationId: q1042.id,
+      status: 'PARTIALLY_DISPATCHED',
+      totalAmount: 1770000.0, // 10 * 150000 + 18% tax
+      totalRequested: 10,
+      totalFulfilled: 10,
+      totalBackordered: 0,
+      shippingAddress: 'TCS Olympus, Hiranandani Estate, Thane, MH 400607',
+      notes: 'Customer requires split delivery from Mumbai & Bengaluru depots.',
       items: {
         create: [
           {
-            productId: prodCPQSub.id,
-            quantity: 2,
-            unitPrice: 95000.0,
-            discountPercent: 10.0,
-            allowedLimit: 15.0,
-            netPrice: 171000.0,
-            marginPercent: 71.0,
-            isOverLimit: false
-          },
+            productId: prodLaptop.id,
+            requestedQuantity: 10,
+            fulfilledQuantity: 10,
+            backorderedQuantity: 0,
+            unitPrice: 150000.0,
+            totalPrice: 1500000.0
+          }
+        ]
+      }
+    },
+    include: { items: true }
+  });
+
+  const order1001Item = order1001.items[0];
+
+  // Fulfillment 1001-1: Warehouse Mumbai (BOM-1) -> 6 Units (Dispatched)
+  const ful1001A = await prisma.fulfillment.create({
+    data: {
+      orderId: order1001.id,
+      warehouseId: whBom.id,
+      fulfillmentNumber: 'FUL-ORD-1001-BOM-1',
+      orderNumber: 'ORD-1001',
+      status: 'DISPATCHED',
+      totalUnits: 6,
+      totalQuantity: 6,
+      backorderedUnits: 0,
+      shippingCost: 1500.0,
+      carrier: 'BlueDart Express',
+      trackingNumber: 'AWB-BLU-88219041',
+      dispatchedAt: new Date(Date.now() - 6 * 3600 * 1000),
+      items: {
+        create: [
           {
-            productId: prodCloudCare.id,
+            orderItemId: order1001Item.id,
+            productId: prodLaptop.id,
             quantity: 6,
-            unitPrice: 24000.0,
-            discountPercent: 5.0,
-            allowedLimit: 10.0,
-            netPrice: 136800.0,
-            marginPercent: 65.0,
-            isOverLimit: false
-          },
-          {
-            productId: prodOnsite.id,
-            quantity: 1,
-            unitPrice: 65000.0,
-            discountPercent: 0.0,
-            allowedLimit: 5.0,
-            netPrice: 65000.0,
-            marginPercent: 53.8,
-            isOverLimit: false
+            unitPrice: 150000.0
           }
         ]
       }
     }
   });
 
-  // Quotation 3: Q-1035 (Confirmed Deal with Nova Retail)
-  const q1035 = await prisma.quotation.create({
+  // Invoice for Fulfillment 1001-1 (Mumbai)
+  await prisma.invoice.create({
     data: {
-      quoteNumber: 'Q-1035',
-      customerId: customerNova.id,
-      salesRepId: 'usr-rep-03',
-      status: 'CONFIRMED',
-      subtotal: 285000.0,
-      totalDiscount: 15000.0,
-      taxAmount: 48600.0,
-      totalAmount: 318600.0,
-      blendedMargin: 29.2,
-      blendedRiskScore: 8.5,
-      portalToken: 'portal-nova-1035',
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      invoiceNumber: 'INV-ORD-1001-BOM-1',
+      customerId: customerTCS.id,
+      orderId: order1001.id,
+      fulfillmentId: ful1001A.id,
+      warehouseId: whBom.id,
+      amount: 900000.0,
+      taxAmount: 162000.0,
+      totalAmount: 1062000.0,
+      status: 'PAID',
+      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      paidAt: new Date(Date.now() - 2 * 3600 * 1000),
+      paymentMethod: 'RTGS / HDFC Corporate'
+    }
+  });
+
+  // Fulfillment 1001-2: Warehouse Bengaluru (BLR-1) -> 4 Units (Ready for dispatch)
+  const ful1001B = await prisma.fulfillment.create({
+    data: {
+      orderId: order1001.id,
+      warehouseId: whBlr.id,
+      fulfillmentNumber: 'FUL-ORD-1001-BLR-1',
+      orderNumber: 'ORD-1001',
+      status: 'READY',
+      totalUnits: 4,
+      totalQuantity: 4,
+      backorderedUnits: 0,
+      shippingCost: 1000.0,
+      carrier: 'Delhivery Surface Cargo',
+      trackingNumber: 'AWB-DEL-44190822',
       items: {
         create: [
           {
+            orderItemId: order1001Item.id,
             productId: prodLaptop.id,
-            quantity: 1,
-            unitPrice: 150000.0,
-            discountPercent: 5.0,
-            allowedLimit: 10.0,
-            netPrice: 142500.0,
-            marginPercent: 25.0,
-            isOverLimit: false
-          },
-          {
-            productId: prodCPQSub.id,
-            quantity: 1,
-            unitPrice: 95000.0,
-            discountPercent: 5.0,
-            allowedLimit: 10.0,
-            netPrice: 90250.0,
-            marginPercent: 72.0,
-            isOverLimit: false
-          },
-          {
-            productId: prodSecurity.id,
-            quantity: 1,
-            unitPrice: 36000.0,
-            discountPercent: 0.0,
-            allowedLimit: 5.0,
-            netPrice: 36000.0,
-            marginPercent: 66.7,
-            isOverLimit: false
+            quantity: 4,
+            unitPrice: 150000.0
           }
         ]
       }
     }
   });
 
-  // Quotation 4: Q-1045 (Negotiation with Apex Dynamics)
-  const q1045 = await prisma.quotation.create({
+  // Invoice for Fulfillment 1001-2 (Bengaluru)
+  await prisma.invoice.create({
     data: {
-      quoteNumber: 'Q-1045',
-      customerId: customerApex.id,
-      salesRepId: 'usr-rep-03',
-      status: 'NEGOTIATION',
-      subtotal: 890000.0,
-      totalDiscount: 110000.0,
-      taxAmount: 140400.0,
-      totalAmount: 920400.0,
-      blendedMargin: 22.4,
-      blendedRiskScore: 48.0,
-      portalToken: 'portal-apex-1045',
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      invoiceNumber: 'INV-ORD-1001-BLR-1',
+      customerId: customerTCS.id,
+      orderId: order1001.id,
+      fulfillmentId: ful1001B.id,
+      warehouseId: whBlr.id,
+      amount: 600000.0,
+      taxAmount: 108000.0,
+      totalAmount: 708000.0,
+      status: 'UNPAID',
+      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      paymentMethod: 'Corporate Wire / RTGS'
+    }
+  });
+
+  // =========================================================
+  // SCENARIO 2: ORDER #1002 — PARTIAL FULFILLMENT + BACKORDER (10 Monitors: 6 from WH A, 4 Backordered)
+  // =========================================================
+  const order1002 = await prisma.order.create({
+    data: {
+      orderNumber: 'ORD-1002',
+      customerId: customerInfosys.id,
+      quotationId: q1039.id,
+      status: 'PARTIALLY_FULFILLED',
+      totalAmount: 531000.0, // 10 * 45000 + 18% tax
+      totalRequested: 10,
+      totalFulfilled: 6,
+      totalBackordered: 4,
+      shippingAddress: 'Infosys Campus, Gate 4, Electronics City, Bengaluru, KA 560100',
+      notes: 'Initial 6 units dispatched immediately. Remaining 4 units placed on factory backorder.',
       items: {
         create: [
-          {
-            productId: prodLaptop.id,
-            quantity: 5,
-            unitPrice: 150000.0,
-            discountPercent: 16.0,
-            allowedLimit: 12.0,
-            netPrice: 630000.0,
-            marginPercent: 21.0,
-            isOverLimit: true
-          },
           {
             productId: prodMonitor.id,
-            quantity: 5,
+            requestedQuantity: 10,
+            fulfilledQuantity: 6,
+            backorderedQuantity: 4,
             unitPrice: 45000.0,
-            discountPercent: 12.0,
-            allowedLimit: 10.0,
-            netPrice: 198000.0,
-            marginPercent: 25.5,
-            isOverLimit: true
+            totalPrice: 450000.0
+          }
+        ]
+      }
+    },
+    include: { items: true }
+  });
+
+  const order1002Item = order1002.items[0];
+
+  // Fulfillment 1002-1: Warehouse Mumbai (BOM-1) -> 6 Units
+  const ful1002A = await prisma.fulfillment.create({
+    data: {
+      orderId: order1002.id,
+      warehouseId: whBom.id,
+      fulfillmentNumber: 'FUL-ORD-1002-BOM-1',
+      orderNumber: 'ORD-1002',
+      status: 'READY',
+      totalUnits: 6,
+      totalQuantity: 6,
+      backorderedUnits: 0,
+      shippingCost: 1500.0,
+      carrier: 'BlueDart Express',
+      trackingNumber: 'AWB-BLU-99210088',
+      items: {
+        create: [
+          {
+            orderItemId: order1002Item.id,
+            productId: prodMonitor.id,
+            quantity: 6,
+            unitPrice: 45000.0
           }
         ]
       }
     }
   });
 
-  // Quotation 5: Q-1048 (Draft with Global Logistics)
-  const q1048 = await prisma.quotation.create({
+  // Invoice for Fulfillment 1002-1
+  await prisma.invoice.create({
     data: {
-      quoteNumber: 'Q-1048',
-      customerId: customerGlobal.id,
-      salesRepId: 'usr-rep-03',
-      status: 'DRAFT',
-      subtotal: 195000.0,
-      totalDiscount: 10000.0,
-      taxAmount: 33300.0,
-      totalAmount: 218300.0,
-      blendedMargin: 34.0,
-      blendedRiskScore: 5.0,
-      portalToken: 'portal-global-1048',
-      expiresAt: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000),
+      invoiceNumber: 'INV-ORD-1002-BOM-1',
+      customerId: customerInfosys.id,
+      orderId: order1002.id,
+      fulfillmentId: ful1002A.id,
+      warehouseId: whBom.id,
+      amount: 270000.0,
+      taxAmount: 48600.0,
+      totalAmount: 318600.0,
+      status: 'UNPAID',
+      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    }
+  });
+
+  // Backorder for Order 1002 -> 4 Units
+  await prisma.backorder.create({
+    data: {
+      orderId: order1002.id,
+      status: 'BACKORDERED',
       items: {
         create: [
           {
-            productId: prodLaptop.id,
-            quantity: 1,
-            unitPrice: 150000.0,
-            discountPercent: 4.0,
-            allowedLimit: 10.0,
-            netPrice: 144000.0,
-            marginPercent: 26.0,
-            isOverLimit: false
-          },
+            orderItemId: order1002Item.id,
+            productId: prodMonitor.id,
+            quantity: 4,
+            fulfilledQuantity: 0,
+            remainingQuantity: 4
+          }
+        ]
+      }
+    }
+  });
+
+  // =========================================================
+  // SCENARIO 3: ORDER #1003 — 3-WAREHOUSE SPLIT + 1 BACKORDER (10 Docks: BOM:3, BLR:4, DEL:2, BO:1)
+  // =========================================================
+  const order1003 = await prisma.order.create({
+    data: {
+      orderNumber: 'ORD-1003',
+      customerId: customerReliance.id,
+      status: 'PARTIALLY_FULFILLED',
+      totalAmount: 218300.0, // 10 * 18500 + 18% tax
+      totalRequested: 10,
+      totalFulfilled: 9,
+      totalBackordered: 1,
+      shippingAddress: 'Reliance Corporate Park, Ghansoli, Navi Mumbai, MH 400701',
+      notes: 'Tri-depot multi-split fulfillment.',
+      items: {
+        create: [
           {
             productId: prodDock.id,
-            quantity: 2,
-            unitPrice: 12500.0,
-            discountPercent: 0.0,
-            allowedLimit: 10.0,
-            netPrice: 25000.0,
-            marginPercent: 42.4,
-            isOverLimit: false
+            requestedQuantity: 10,
+            fulfilledQuantity: 9,
+            backorderedQuantity: 1,
+            unitPrice: 18500.0,
+            totalPrice: 185000.0
+          }
+        ]
+      }
+    },
+    include: { items: true }
+  });
+
+  const order1003Item = order1003.items[0];
+
+  // Fulfillments across 3 warehouses
+  await prisma.fulfillment.create({
+    data: {
+      orderId: order1003.id,
+      warehouseId: whBom.id,
+      fulfillmentNumber: 'FUL-ORD-1003-BOM-1',
+      orderNumber: 'ORD-1003',
+      status: 'READY',
+      totalUnits: 3,
+      totalQuantity: 3,
+      shippingCost: 750.0,
+      items: {
+        create: [{ orderItemId: order1003Item.id, productId: prodDock.id, quantity: 3, unitPrice: 18500.0 }]
+      }
+    }
+  });
+
+  await prisma.fulfillment.create({
+    data: {
+      orderId: order1003.id,
+      warehouseId: whBlr.id,
+      fulfillmentNumber: 'FUL-ORD-1003-BLR-1',
+      orderNumber: 'ORD-1003',
+      status: 'READY',
+      totalUnits: 4,
+      totalQuantity: 4,
+      shippingCost: 1000.0,
+      items: {
+        create: [{ orderItemId: order1003Item.id, productId: prodDock.id, quantity: 4, unitPrice: 18500.0 }]
+      }
+    }
+  });
+
+  await prisma.fulfillment.create({
+    data: {
+      orderId: order1003.id,
+      warehouseId: whDel.id,
+      fulfillmentNumber: 'FUL-ORD-1003-DEL-1',
+      orderNumber: 'ORD-1003',
+      status: 'READY',
+      totalUnits: 2,
+      totalQuantity: 2,
+      shippingCost: 500.0,
+      items: {
+        create: [{ orderItemId: order1003Item.id, productId: prodDock.id, quantity: 2, unitPrice: 18500.0 }]
+      }
+    }
+  });
+
+  // Backorder of 1 unit
+  await prisma.backorder.create({
+    data: {
+      orderId: order1003.id,
+      status: 'BACKORDERED',
+      items: {
+        create: [
+          {
+            orderItemId: order1003Item.id,
+            productId: prodDock.id,
+            quantity: 1,
+            fulfilledQuantity: 0,
+            remainingQuantity: 1
           }
         ]
       }
@@ -692,7 +1058,7 @@ async function main() {
   });
 
   // ---------------------------------------------------------
-  // 9. SEED APPROVAL WORKFLOWS
+  // 10. SEED GOVERNANCE APPROVALS & DEAL HEALTH
   // ---------------------------------------------------------
   console.log('[DealFlow360 Seed] Seeding Governance Approval Chains...');
   await prisma.approval.createMany({
@@ -703,264 +1069,41 @@ async function main() {
         stage: 'Sales Manager (L1)',
         status: 'APPROVED',
         riskLevel: 'MEDIUM',
-        reason: 'Laptop Pro 14 discount (12%) exceeds rep cap of 10%',
-        comments: 'Approved based on customer strategic Gold Tier relationship and 3-unit commitment.',
+        reason: 'Enterprise Laptop Pro 14" discount (12%) exceeds rep cap of 10%',
+        comments: 'Approved by Priya Sharma based on Tata strategic Gold Tier relationship and 3-unit commitment.',
         approvedAt: new Date(Date.now() - 2 * 3600 * 1000)
-      },
-      {
-        quotationId: q1042.id,
-        approverId: 'usr-fin-04',
-        stage: 'Finance / Margin Control (L2)',
-        status: 'PENDING',
-        riskLevel: 'HIGH',
-        reason: 'Aggregate deal value exceeds ₹500,000 with hardware discounting',
-        comments: 'Evaluating margin floor protection before final quote release.'
-      },
-      {
-        quotationId: q1039.id,
-        approverId: 'usr-mgr-02',
-        stage: 'Sales Manager (L1)',
-        status: 'APPROVED',
-        riskLevel: 'LOW',
-        reason: 'SaaS multi-month contract with 31.5% healthy blended margin',
-        comments: 'Full governance compliance verified.',
-        approvedAt: new Date(Date.now() - 24 * 3600 * 1000)
-      },
-      {
-        quotationId: q1045.id,
-        approverId: 'usr-fin-04',
-        stage: 'Finance / Margin Control (L2)',
-        status: 'PENDING',
-        riskLevel: 'CRITICAL',
-        reason: 'Hardware discount 16% severely erodes blended margin to 22.4%',
-        comments: 'Negotiation counter-proposal pending customer signoff on support add-on.'
       }
     ]
   });
 
-  // ---------------------------------------------------------
-  // 10. SEED FULFILLMENTS & SPLIT SHIPMENTS
-  // ---------------------------------------------------------
-  console.log('[DealFlow360 Seed] Seeding Multi-Warehouse Fulfillment Allocations...');
-  const ful1 = await prisma.fulfillment.create({
-    data: {
-      quotationId: q1035.id,
-      orderNumber: 'ORD-2024-001',
-      status: 'ALLOCATED',
-      totalUnits: 3,
-      backorderedUnits: 0,
-      splits: {
-        create: [
-          {
-            warehouseId: whBom.id,
-            allocatedUnits: 2,
-            shippingCost: 850.0,
-            status: 'Picked & Packed'
-          },
-          {
-            warehouseId: whBlr.id,
-            allocatedUnits: 1,
-            shippingCost: 450.0,
-            status: 'Ready for Dispatch'
-          }
-        ]
-      }
-    }
-  });
-
-  const ful2 = await prisma.fulfillment.create({
-    data: {
-      quotationId: q1039.id,
-      orderNumber: 'ORD-2024-002',
-      status: 'PARTIALLY_FULFILLED',
-      totalUnits: 8,
-      backorderedUnits: 1,
-      splits: {
-        create: [
-          {
-            warehouseId: whBom.id,
-            allocatedUnits: 5,
-            shippingCost: 1450.0,
-            status: 'Dispatched (AWB: TRK-99210)'
-          },
-          {
-            warehouseId: whCcu.id,
-            allocatedUnits: 2,
-            shippingCost: 750.0,
-            status: 'In Transit'
-          },
-          {
-            warehouseId: whDel.id,
-            allocatedUnits: 1,
-            shippingCost: 600.0,
-            status: 'Backordered (ETA: 48h)'
-          }
-        ]
-      }
-    }
-  });
-
-  // ---------------------------------------------------------
-  // 11. SEED RECURRING SUBSCRIPTIONS
-  // ---------------------------------------------------------
-  console.log('[DealFlow360 Seed] Seeding SaaS Subscriptions & Recurring Contracts...');
-  await prisma.subscription.createMany({
-    data: [
-      {
-        contractNumber: 'SUB-2024-881',
-        customerId: customerAcme.id,
-        quotationId: q1042.id,
-        planName: 'DealFlow360 Enterprise CPQ Platform',
-        billingCycle: 'ANNUAL',
-        recurringAmount: 95000.0,
-        status: 'ACTIVE',
-        startDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
-        nextBillingDate: new Date(Date.now() + 305 * 24 * 60 * 60 * 1000),
-        autoRenew: true
-      },
-      {
-        contractNumber: 'SUB-2024-882',
-        customerId: customerBeta.id,
-        quotationId: q1039.id,
-        planName: 'Cloud Infrastructure Care & 24/7 SLA',
-        billingCycle: 'MONTHLY',
-        recurringAmount: 24000.0,
-        status: 'ACTIVE',
-        startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-        nextBillingDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
-        autoRenew: true
-      },
-      {
-        contractNumber: 'SUB-2024-883',
-        customerId: customerNova.id,
-        quotationId: q1035.id,
-        planName: 'Zero-Trust Security & Compliance Suite',
-        billingCycle: 'MONTHLY',
-        recurringAmount: 36000.0,
-        status: 'ACTIVE',
-        startDate: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
-        nextBillingDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
-        autoRenew: true
-      }
-    ]
-  });
-
-  // ---------------------------------------------------------
-  // 12. SEED INVOICES & RECONCILIATIONS
-  // ---------------------------------------------------------
-  console.log('[DealFlow360 Seed] Seeding Invoices & Commercial Accounts...');
-  await prisma.invoice.createMany({
-    data: [
-      {
-        invoiceNumber: 'INV-2024-101',
-        customerId: customerAcme.id,
-        quotationId: q1042.id,
-        amount: 658440.0,
-        taxAmount: 100440.0,
-        totalAmount: 658440.0,
-        status: 'PAID',
-        dueDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
-        paidAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-        paymentMethod: 'NEFT / RTGS Wire',
-        transactionRef: 'TXN-HDFC-9912048'
-      },
-      {
-        invoiceNumber: 'INV-2024-102',
-        customerId: customerBeta.id,
-        quotationId: q1039.id,
-        amount: 442500.0,
-        taxAmount: 67500.0,
-        totalAmount: 442500.0,
-        status: 'PARTIALLY_PAID',
-        dueDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
-        paidAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-        paymentMethod: 'Corporate Card',
-        transactionRef: 'TXN-ICICI-4418290'
-      },
-      {
-        invoiceNumber: 'INV-2024-103',
-        customerId: customerNova.id,
-        quotationId: q1035.id,
-        amount: 318600.0,
-        taxAmount: 48600.0,
-        totalAmount: 318600.0,
-        status: 'PAID',
-        dueDate: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
-        paidAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000),
-        paymentMethod: 'ACH Transfer',
-        transactionRef: 'TXN-AXIS-7718902'
-      },
-      {
-        invoiceNumber: 'INV-2024-104',
-        customerId: customerApex.id,
-        quotationId: q1045.id,
-        amount: 180000.0,
-        taxAmount: 27450.0,
-        totalAmount: 207450.0,
-        status: 'UNPAID',
-        dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
-      },
-      {
-        invoiceNumber: 'INV-2024-105',
-        customerId: customerGlobal.id,
-        quotationId: q1048.id,
-        amount: 95000.0,
-        taxAmount: 14490.0,
-        totalAmount: 109490.0,
-        status: 'OVERDUE',
-        dueDate: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000)
-      }
-    ]
-  });
-
-  // ---------------------------------------------------------
-  // 13. SEED DEAL HEALTH ANOMALY ALERTS
-  // ---------------------------------------------------------
-  console.log('[DealFlow360 Seed] Seeding Deal Health & Margin Risk Intelligence...');
+  console.log('[DealFlow360 Seed] Seeding Deal Health Alerts...');
   await prisma.dealHealthAlert.createMany({
     data: [
       {
         quotationId: q1042.id,
-        severity: 'WARNING',
-        title: 'Line Discount Threshold Exceeded',
-        description: 'Laptop Pro 14" discounted at 12% against self-approval limit of 10%. Routed to L1 Sales Manager review.',
-        anomalyType: 'DISCOUNT_LIMIT_EXCEEDED',
-        isResolved: false
-      },
-      {
-        quotationId: q1045.id,
-        severity: 'CRITICAL',
-        title: 'Severe Margin Erosion Anomaly',
-        description: 'Blended margin dropped to 22.4% (Threshold: 25.0%). Recommending mandatory Upsell rule bundle or discount curtailment.',
-        anomalyType: 'MARGIN_EROSION',
-        isResolved: false
-      },
-      {
-        quotationId: q1039.id,
         severity: 'INFO',
-        title: 'Multi-Warehouse Split Optimization Recommended',
-        description: 'Splitting shipment between BOM-1 and CCU-1 cuts turnaround latency by 48 hours.',
+        title: 'Multi-Warehouse Split Optimization Verified',
+        description: 'Order ORD-1001 successfully split between Mumbai (BOM-1) and Bengaluru (BLR-1) hubs.',
         anomalyType: 'FULFILLMENT_OPTIMIZATION',
         isResolved: true,
-        resolvedAt: new Date(Date.now() - 18 * 3600 * 1000)
+        resolvedAt: new Date()
       }
     ]
   });
 
   console.log('\n============================================================');
   console.log('✔ [DealFlow360 Seed] Database successfully seeded with:');
-  console.log('   - 5 RBAC Users (+ 5 exact login aliases)');
-  console.log('   - 5 Enterprise Customers with Gold/Silver/Bronze Tiers');
-  console.log('   - 4 Multi-Region Warehouses with Live Stock Allocations');
-  console.log('   - 7 Core Hardware/Software/Services Products & Variants');
-  console.log('   - 6 Discount Tiers & Volume Thresholds');
-  console.log('   - 3 High-Margin Upsell Rules');
-  console.log('   - 5 Enterprise Quotations & Detailed Line Items');
-  console.log('   - 4 Multi-Stage Governance Approvals (L1 / L2)');
-  console.log('   - 2 Multi-Depot Order Fulfillments & Backorders');
-  console.log('   - 3 SaaS MRR Subscriptions');
-  console.log('   - 5 Financial Invoices (Paid, Unpaid, Overdue)');
-  console.log('   - 3 Deal Health & Anomaly Alerts');
+  console.log('   - 5 Indian RBAC Users (Aditya, Priya, Rajesh, Vikram, Ananya)');
+  console.log('   - 5 Indian Enterprise Customers (TCS, Infosys, Reliance, Wipro, HDFC)');
+  console.log('   - 4 Multi-Region Indian Hubs (Mumbai, Kolkata, Bengaluru, Delhi NCR)');
+  console.log('   - 7 Core Hardware/Software/Services Products in INR (₹)');
+  console.log('   - Real-Time Multi-Warehouse Stock Levels (Total, Reserved, Available)');
+  console.log('   - 3 Realistic Customer Orders:');
+  console.log('       1. ORD-1001: 10 units -> Split WH A (6) + WH B (4)');
+  console.log('       2. ORD-1002: 10 units -> WH A (6) + Backorder (4)');
+  console.log('       3. ORD-1003: 10 units -> 3-Warehouse Split (3+4+2) + Backorder (1)');
+  console.log('   - Warehouse-specific Invoices associated with Parent Orders');
+  console.log('   - Active Backorders with 1-click fulfillment workflows');
   console.log('============================================================\n');
 }
 

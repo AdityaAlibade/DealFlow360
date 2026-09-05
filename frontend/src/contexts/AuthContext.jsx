@@ -7,52 +7,52 @@ export const AuthContext = createContext(null);
 export const DEMO_ACCOUNTS = {
   admin: {
     id: 'usr-admin-01',
-    name: 'Admin User',
+    name: 'Aditya Alibade',
     email: 'adityaalibade1046@gmail.com',
     role: 'admin',
     roleLabel: 'System Administrator',
-    avatar: 'AD',
+    avatar: 'AA',
     department: 'Platform Administration',
     token: 'jwt-admin-token-dealflow360'
   },
   sales_manager: {
     id: 'usr-mgr-02',
-    name: 'Sales Manager',
+    name: 'Priya Sharma',
     email: 'salesmanager@dealflow360.com',
     role: 'sales_manager',
     roleLabel: 'Sales Manager (L1 Approver)',
-    avatar: 'SM',
+    avatar: 'PS',
     department: 'Sales Leadership',
     token: 'jwt-salesmanager-token-dealflow360'
   },
   sales_rep: {
     id: 'usr-rep-03',
-    name: 'Sales Rep',
+    name: 'Rajesh Kumar',
     email: 'salesrep@dealflow360.com',
     role: 'sales_rep',
     roleLabel: 'Sales Representative',
-    avatar: 'SR',
+    avatar: 'RK',
     department: 'Enterprise Sales',
     token: 'jwt-salesrep-token-dealflow360'
   },
   finance_ops: {
     id: 'usr-fin-04',
-    name: 'Finance Manager',
+    name: 'Vikram Malhotra',
     email: 'financemanager@dealflow360.com',
     role: 'finance_ops',
     roleLabel: 'Finance Manager (L2 Approver)',
-    avatar: 'FM',
+    avatar: 'VM',
     department: 'Finance & Operations',
     token: 'jwt-financemanager-token-dealflow360'
   },
   customer: {
     id: 'usr-cust-05',
-    name: 'Customer Account',
+    name: 'Ananya Deshmukh',
     email: 'customer@dealflow360.com',
     role: 'customer',
-    roleLabel: 'Customer Portal User',
-    avatar: 'CU',
-    department: 'Client Procurement',
+    roleLabel: 'Customer Portal User (Tata Digital)',
+    avatar: 'AD',
+    department: 'Strategic Procurement',
     token: 'demo-token-123',
     portalToken: 'demo-token-123'
   }

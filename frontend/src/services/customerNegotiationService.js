@@ -10,31 +10,31 @@ import { logAuditEvent, AUDIT_ACTIONS } from '../utils/auditLogger';
 const VALID_CUSTOMER_TOKENS = {
   'demo-token-123': {
     quotationId: 'Q-2026-8801',
-    customerId: 'CUST-ACME-01',
-    customerName: 'Acme Corporation',
-    contactPerson: 'Alex Buyer',
-    contactEmail: 'buyer@acmecorp.com',
+    customerId: 'CUST-TCS-01',
+    customerName: 'Tata Consultancy Services (TCS)',
+    contactPerson: 'Ananya Deshmukh',
+    contactEmail: 'procurement@tcs.com',
     status: 'Sent (Negotiation Open)',
     quoteValidity: '2026-10-15',
     currentDiscount: 10,
     maxDirectAcceptDiscount: 10, // Max discount allowed without triggering re-approval
-    currency: 'USD',
+    currency: 'INR',
     lineItems: [
-      { id: 'item-1', name: 'Laptop Pro 14 (High Performance)', qty: 2, price: 1200, discount: 10, total: 2160 },
-      { id: 'item-2', name: 'Onsite Setup & Implementation Service', qty: 1, price: 450, discount: 10, total: 405 },
-      { id: 'item-3', name: 'Extended Warranty (2 Years)', qty: 1, price: 180, discount: 10, total: 162 }
+      { id: 'item-1', name: 'Enterprise Laptop Pro 14" (Workstation)', qty: 2, price: 150000, discount: 10, total: 270000 },
+      { id: 'item-2', name: 'Onsite Setup & Migration Service', qty: 1, price: 45000, discount: 10, total: 40500 },
+      { id: 'item-3', name: 'Enterprise Support SLA (2 Years)', qty: 1, price: 25000, discount: 10, total: 22500 }
     ],
     // Internal sensitive data (MUST BE STRIPPED from customer response)
     _internal: {
-      baseCost: 1850,
-      targetMarginPct: 32.5,
+      baseCost: 215000,
+      targetMarginPct: 34.5,
       blendedRiskScore: 'Low (0.12)',
-      internalApprovalNotes: 'Approved by Sarah J. on condition of 2-year contract',
-      assignedRep: 'John Doe (Internal Sales)',
-      warehouseDepot: 'BOM-1 (Main Warehouse)'
+      internalApprovalNotes: 'Approved by Priya Sharma on condition of 2-year contract',
+      assignedRep: 'Rajesh Kumar (Enterprise Sales)',
+      warehouseDepot: 'BOM-1 (Mumbai Logistics Hub)'
     },
     negotiationHistory: [
-      { timestamp: '2026-09-01T10:00:00Z', actor: 'Sales Rep (John Doe)', message: 'Initial quote dispatched at 10% standard discount.' }
+      { timestamp: '2026-09-01T10:00:00Z', actor: 'Sales Rep (Rajesh Kumar)', message: 'Initial quote dispatched at 10% standard discount.' }
     ]
   }
 };
@@ -222,7 +222,7 @@ export const CustomerNegotiationService = {
       rawQuote.negotiationHistory.push({
         timestamp: new Date().toISOString(),
         actor: 'Sales Operations',
-        message: `Added requested line item [${newLineItem.name}] (Qty: ${newLineItem.qty}, Price: $${newLineItem.price}, Discount: ${newLineItem.discount}%, Total: $${newLineItem.total}).`
+        message: `Added requested line item [${newLineItem.name}] (Qty: ${newLineItem.qty}, Price: ₹${newLineItem.price}, Discount: ${newLineItem.discount}%, Total: ₹${newLineItem.total}).`
       });
       return true;
     }

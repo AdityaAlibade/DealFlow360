@@ -17,8 +17,10 @@ const InvoiceList = () => {
   ];
 
   const dummyData = [
-    { id: 'INV-2024-089', customer: 'Acme Global', dueDate: '2024-06-15', amount: '$14,200', status: 'Paid', statusVariant: 'success' },
-    { id: 'INV-2024-090', customer: 'Stark Industries', dueDate: '2024-06-20', amount: '$85,000', status: 'Unpaid', statusVariant: 'warning' },
+    { id: 'INV-2026-101', customer: 'Tata Consultancy Services (TCS)', dueDate: '2026-09-15', amount: '₹10,03,000', status: 'Paid', statusVariant: 'success' },
+    { id: 'INV-2026-102', customer: 'Infosys Limited', dueDate: '2026-09-20', amount: '₹11,50,500', status: 'Partially Paid', statusVariant: 'warning' },
+    { id: 'INV-2026-103', customer: 'Reliance Digital Enterprises', dueDate: '2026-09-25', amount: '₹6,60,800', status: 'Paid', statusVariant: 'success' },
+    { id: 'INV-2026-104', customer: 'Wipro Infotech Solutions', dueDate: '2026-09-30', amount: '₹10,03,000', status: 'Unpaid', statusVariant: 'danger' }
   ];
 
   return <Table columns={columns} data={dummyData} />;

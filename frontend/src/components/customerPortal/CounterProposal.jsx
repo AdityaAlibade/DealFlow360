@@ -16,9 +16,9 @@ const CounterProposal = ({ token }) => {
     <Card title="Negotiate & Counter">
       <form onSubmit={handleSubmit} className="space-y-4">
         <Input
-          label="Target Budget / Price"
+          label="Target Budget / Price (₹)"
           type="number"
-          placeholder="$40,000"
+          placeholder="₹8,50,000"
           value={targetPrice}
           onChange={(e) => setTargetPrice(e.target.value)}
         />

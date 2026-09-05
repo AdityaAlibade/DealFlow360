@@ -82,9 +82,9 @@ const ApprovalDetailPage = () => {
           </button>
           <div>
             <h1 className="text-xl font-extrabold text-slate-900">
-              Approval Detail: <span className="text-[#a459a8]">{id || 'Q-1042'}</span> (Acme Corp)
+              Approval Detail: <span className="text-[#a459a8]">{id || 'Q-1042'}</span> (Tata Consultancy Services)
             </h1>
-            <p className="text-xs text-slate-500">Tier: Gold Customer &bull; Total Value: ₹12,400</p>
+            <p className="text-xs text-slate-500">Tier: Gold Customer &bull; Total Value: ₹10,03,000</p>
           </div>
         </div>
 

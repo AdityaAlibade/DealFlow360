@@ -17,8 +17,9 @@ const SubscriptionList = () => {
   ];
 
   const dummyData = [
-    { id: 'SUB-101', account: 'Acme Global', cycle: 'Monthly', revenue: '$1,200/mo', status: 'Active', statusVariant: 'success' },
-    { id: 'SUB-102', account: 'Stark Industries', cycle: 'Annual', revenue: '$85,000/yr', status: 'Active', statusVariant: 'success' },
+    { id: 'SUB-2026-881', account: 'Tata Consultancy Services (TCS)', cycle: 'Annual', revenue: '₹3,50,000/yr', status: 'Active', statusVariant: 'success' },
+    { id: 'SUB-2026-882', account: 'Infosys Limited', cycle: 'Annual', revenue: '₹1,20,000/yr', status: 'Active', statusVariant: 'success' },
+    { id: 'SUB-2026-883', account: 'Reliance Digital Enterprises', cycle: 'Annual', revenue: '₹95,000/yr', status: 'Active', statusVariant: 'success' }
   ];
 
   return <Table columns={columns} data={dummyData} />;

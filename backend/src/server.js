@@ -35,9 +35,32 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan(config.env === 'development' ? 'dev' : 'combined'));
 
-// Health Check
+// Health Check & Root Handlers
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', app: config.brand.appName, timestamp: new Date() });
+});
+
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'OK',
+    app: config.brand.appName,
+    description: 'DealFlow360 — Enterprise CPQ, Subscription Billing & Revenue Intelligence Platform API',
+    version: '1.0.0',
+    endpoints: {
+      health: '/health',
+      auth: '/api/auth',
+      dashboard: '/api/dashboard',
+      quotations: '/api/quotations',
+      approvals: '/api/approvals',
+      fulfillment: '/api/fulfillment',
+      subscriptions: '/api/subscriptions',
+      invoices: '/api/invoices',
+      dealHealth: '/api/deal-health',
+      reports: '/api/reports',
+      products: '/api/products'
+    },
+    frontendApp: config.frontendUrl || 'http://localhost:3000'
+  });
 });
 
 // Mount API Modules

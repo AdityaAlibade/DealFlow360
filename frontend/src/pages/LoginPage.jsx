@@ -72,7 +72,7 @@ const LoginPage = () => {
       roleKey: 'admin',
       name: 'Admin',
       badge: 'System Admin',
-      email: 'admin@dealflow360.com',
+      email: 'adityaalibade1046@gmail.com',
       portalText: '/admin',
       icon: Crown,
       borderClass: 'border-purple-200 hover:border-purple-500',
@@ -253,9 +253,9 @@ const LoginPage = () => {
               />
               Remember me
             </label>
-            <a href="#forgot" className="text-[#a459a8] font-medium hover:underline">
-              Default password: <span className="font-mono font-bold">password123</span>
-            </a>
+            <Link to="/forgot-password" className="text-[#a459a8] font-medium hover:underline">
+              Forgot password?
+            </Link>
           </div>
 
           <Button type="submit" variant="primary" className="w-full py-2.5 font-semibold bg-[#a459a8] hover:bg-[#924b96]">

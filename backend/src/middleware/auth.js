@@ -8,7 +8,7 @@ const jwt = require('jsonwebtoken');
 const config = require('../config');
 
 const DEMO_TOKENS = {
-  'jwt-admin-token-dealflow360': { id: 'usr-admin-01', email: 'admin@dealflow360.com', role: 'ADMIN', fullName: 'Admin User' },
+  'jwt-admin-token-dealflow360': { id: 'usr-admin-01', email: 'adityaalibade1046@gmail.com', role: 'ADMIN', fullName: 'Admin User' },
   'jwt-salesmanager-token-dealflow360': { id: 'usr-mgr-02', email: 'salesmanager@dealflow360.com', role: 'SALES_MANAGER', fullName: 'Sales Manager' },
   'jwt-manager-token-dealflow360': { id: 'usr-mgr-02', email: 'salesmanager@dealflow360.com', role: 'SALES_MANAGER', fullName: 'Sales Manager' },
   'jwt-salesrep-token-dealflow360': { id: 'usr-rep-03', email: 'salesrep@dealflow360.com', role: 'SALES_REP', fullName: 'Sales Rep' },

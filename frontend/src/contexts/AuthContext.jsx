@@ -8,7 +8,7 @@ export const DEMO_ACCOUNTS = {
   admin: {
     id: 'usr-admin-01',
     name: 'Admin User',
-    email: 'admin@dealflow360.com',
+    email: 'adityaalibade1046@gmail.com',
     role: 'admin',
     roleLabel: 'System Administrator',
     avatar: 'AD',

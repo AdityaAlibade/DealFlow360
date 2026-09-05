@@ -15,9 +15,26 @@ import MainLayout from '../components/layout/MainLayout';
 import Card from '../components/common/Card';
 import Badge from '../components/common/Badge';
 import Button from '../components/common/Button';
+import { useAuth } from '../contexts/AuthContext';
 
 const DashboardPage = () => {
   const navigate = useNavigate();
+  const { user, role } = useAuth();
+
+  const getDashboardHeading = () => {
+    switch (role) {
+      case 'sales_rep':
+        return 'Sales Rep Dashboard';
+      case 'sales_manager':
+        return 'Sales Manager Dashboard';
+      case 'finance_ops':
+        return 'Finance & Operations Dashboard';
+      case 'admin':
+        return 'Admin Operations Dashboard';
+      default:
+        return 'Sales Dashboard';
+    }
+  };
 
   const [quotations] = React.useState(() => {
     try {
@@ -105,7 +122,7 @@ const DashboardPage = () => {
       {/* Header section */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Sales Dashboard</h1>
+          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">{getDashboardHeading()}</h1>
           <p className="text-xs text-slate-500 mt-1">Last updated: Today, 2:30 PM &bull; Real-time pipeline intelligence</p>
         </div>
         <div className="flex items-center gap-3">

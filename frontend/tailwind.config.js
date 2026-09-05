@@ -21,6 +21,16 @@ module.exports = {
           900: '#4f2750',
           950: '#341335'
         }
+      },
+      fontFamily: {
+        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', 'sans-serif'],
+        heading: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+      },
+      letterSpacing: {
+        tightest: '-.035em',
+        tighter: '-.025em',
+        tight: '-.015em',
       }
     },
   },

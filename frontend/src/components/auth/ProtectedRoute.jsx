@@ -76,6 +76,17 @@ const ProtectedRoute = ({
   // 3. Check Role Whitelist
   if (allowedRoles && allowedRoles.length > 0) {
     if (!allowedRoles.includes(role)) {
+      // Auto-redirect to role-appropriate portal dashboard rather than trapping in 403
+      if (role === 'sales_rep' || role === 'sales_manager') {
+        return <Navigate to="/sales" replace />;
+      }
+      if (role === 'finance_ops') {
+        return <Navigate to="/finance" replace />;
+      }
+      if (role === 'admin') {
+        return <Navigate to="/admin" replace />;
+      }
+
       return (
         <div className="min-h-[70vh] flex items-center justify-center p-6">
           <div className="bg-white max-w-lg w-full rounded-2xl shadow-xl border border-red-200 p-8 text-center space-y-4">
@@ -93,7 +104,7 @@ const ProtectedRoute = ({
               <span className="font-semibold text-slate-700">{allowedRoles.join(', ')}</span>.
             </p>
             <div className="pt-2">
-              <Link to="/dashboard">
+              <Link to={role === 'admin' ? '/admin' : (role === 'finance_ops' ? '/finance' : '/sales')}>
                 <Button variant="secondary" className="text-xs">
                   Return to Dashboard
                 </Button>

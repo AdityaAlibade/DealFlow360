@@ -1,9 +1,50 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  html {
+    font-family: var(--font-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
   body {
     @apply font-sans antialiased text-slate-800 bg-slate-50;
+    font-family: var(--font-primary);
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  /* Odoo-style Clean Headings Typography */
+  h1, h2, h3, h4, h5, h6 {
+    @apply tracking-tight text-slate-900;
+    font-family: var(--font-primary);
+    letter-spacing: -0.025em;
+  }
+
+  h1 {
+    font-weight: 800;
+  }
+
+  h2 {
+    font-weight: 700;
+  }
+
+  h3 {
+    font-weight: 600;
+  }
+
+  /* Numeric Tabular Alignment for Quotes, Prices & Metrics */
+  .tabular-nums, [data-amount], [data-price], [data-metric] {
+    font-variant-numeric: tabular-nums;
   }
 }
+

@@ -1133,6 +1133,7 @@ const CustomerPortalPage = () => {
                             <th className="py-2.5 px-3 text-right">Est. Total Value</th>
                             <th className="py-2.5 px-3 text-center">Status</th>
                             <th className="py-2.5 px-3 text-left">Sales Representative</th>
+                            <th className="py-2.5 px-3 text-center">Linked Quotation</th>
                             <th className="py-2.5 px-3 text-left">Requested Date</th>
                             <th className="py-2.5 px-3 text-right">Action</th>
                           </tr>
@@ -1145,6 +1146,8 @@ const CustomerPortalPage = () => {
                             if (req.status === 'QUOTATION_CREATED' || req.status === 'QUOTED') badgeVariant = 'info';
 
                             const totalEstValue = req.totalAmount || req.estimatedTotal || ((req.quantity || 1) * (req.unitPrice || 0));
+                            const linkedQ = req.linkedQuotation;
+                            const viewToken = linkedQ?.portalToken || linkedQ?.id;
 
                             return (
                               <tr key={req.id || req.requestId} className="hover:bg-slate-50/50">
@@ -1155,10 +1158,10 @@ const CustomerPortalPage = () => {
                                 </td>
                                 <td className="py-3 px-3 text-center font-mono font-bold">{req.quantity}</td>
                                 <td className="py-3 px-3 text-right font-mono text-slate-600">
-                                  ₹{Number(req.unitPrice || 0).toLocaleString('en-IN')}
+                                  INR {Number(req.unitPrice || 0).toLocaleString('en-IN')}
                                 </td>
                                 <td className="py-3 px-3 text-right font-mono font-bold text-slate-900">
-                                  ₹{Number(totalEstValue || 0).toLocaleString('en-IN')}
+                                  INR {Number(totalEstValue || 0).toLocaleString('en-IN')}
                                 </td>
                                 <td className="py-3 px-3 text-center">
                                   <Badge variant={badgeVariant} dot>{req.status}</Badge>
@@ -1166,20 +1169,44 @@ const CustomerPortalPage = () => {
                                 <td className="py-3 px-3 text-slate-700 font-medium">
                                   {req.assignedSalesRep?.name || req.assignedSalesRep?.fullName || 'Assigned Sales Rep'}
                                 </td>
+                                <td className="py-3 px-3 text-center">
+                                  {linkedQ ? (
+                                    <div className="flex flex-col items-center gap-1">
+                                      <span className="font-mono text-[10px] font-bold text-[#a459a8] bg-purple-50 px-2 py-0.5 rounded">
+                                        {linkedQ.quoteNumber || linkedQ.id?.slice(-8)}
+                                      </span>
+                                      <Badge variant="info" className="text-[9px]">{linkedQ.status}</Badge>
+                                    </div>
+                                  ) : (
+                                    <span className="text-slate-300 text-[10px]">—</span>
+                                  )}
+                                </td>
                                 <td className="py-3 px-3 text-slate-500">
                                   {new Date(req.createdAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
                                 </td>
                                 <td className="py-3 px-3 text-right">
-                                  {req.status === 'PENDING' ? (
-                                    <button
-                                      onClick={() => handleCancelRequest(req.id || req.requestId)}
-                                      className="px-2.5 py-1 text-[11px] font-bold text-red-600 hover:bg-red-50 rounded-lg border border-red-200 transition-colors cursor-pointer"
-                                    >
-                                      Cancel
-                                    </button>
-                                  ) : (
-                                    <span className="text-slate-400 text-[10px]">&bull; In Review</span>
-                                  )}
+                                  <div className="flex flex-col items-end gap-1">
+                                    {req.status === 'PENDING' && (
+                                      <button
+                                        onClick={() => handleCancelRequest(req.id || req.requestId)}
+                                        className="px-2.5 py-1 text-[11px] font-bold text-red-600 hover:bg-red-50 rounded-lg border border-red-200 transition-colors cursor-pointer"
+                                      >
+                                        Cancel
+                                      </button>
+                                    )}
+                                    {linkedQ && viewToken && (
+                                      <button
+                                        onClick={() => navigate(`/customer-portal/${viewToken}`)}
+                                        className="px-2.5 py-1 text-[11px] font-bold text-white bg-[#a459a8] hover:bg-purple-700 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                                      >
+                                        <FileText className="w-3 h-3" />
+                                        View Quotation
+                                      </button>
+                                    )}
+                                    {!linkedQ && req.status !== 'PENDING' && (
+                                      <span className="text-slate-400 text-[10px]">&bull; In Review</span>
+                                    )}
+                                  </div>
                                 </td>
                               </tr>
                             );

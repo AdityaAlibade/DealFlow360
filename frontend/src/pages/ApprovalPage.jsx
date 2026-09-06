@@ -42,7 +42,8 @@ const ApprovalPage = () => {
       customer: quote.customer?.companyName || quote.customer?.name || 'Customer Account',
       risk: isViolating ? 'HIGH' : 'MEDIUM',
       riskColor: isViolating ? 'danger' : 'warning',
-      stage: a.approver?.role ? a.approver.role.replace('_', ' ') : 'Sales Manager',
+      stage: a.stage || 'Sales Manager',
+      stageColor: (a.stage || 'Sales Manager') === 'Finance Manager' ? 'orange' : 'purple',
       assignedTo: a.approver?.fullName || 'Governance Approver',
       date: a.createdAt ? new Date(a.createdAt).toLocaleDateString('en-IN') : 'Recent',
       status: status.charAt(0).toUpperCase() + status.slice(1).toLowerCase(),
@@ -85,7 +86,19 @@ const ApprovalPage = () => {
         </Badge>
       )
     },
-    { header: 'Current Stage', accessor: 'stage' },
+    {
+      header: 'Current Stage',
+      accessor: 'stage',
+      render: (row) => (
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${
+          row.stageColor === 'orange'
+            ? 'bg-orange-100 text-orange-700'
+            : 'bg-purple-100 text-purple-700'
+        }`}>
+          {row.stage}
+        </span>
+      )
+    },
     { header: 'Assigned Approver', accessor: 'assignedTo' },
     { header: 'Submission Date', accessor: 'date' },
     {

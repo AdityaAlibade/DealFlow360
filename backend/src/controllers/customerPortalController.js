@@ -486,15 +486,17 @@ const customerPortalController = {
         }
       });
 
-      // 7. If risk > 0, create an Approval record for Sales Manager (Test 9)
+      // 7. If risk > 0, route approval based on discount threshold:
+      //    discount < 10% => Sales Manager | discount >= 10% => Finance Manager
       if (riskEvaluation.requiresApproval) {
+        const approvalStage = riskEvaluation.discountPercent < 10 ? 'Sales Manager' : 'Finance Manager';
         await prisma.approval.create({
           data: {
             quotationId: quote.id,
-            stage: 'Sales Manager',
+            stage: approvalStage,
             status: 'PENDING',
             riskLevel: riskEvaluation.riskLevel,
-            reason: `Customer counter-offer: ₹${reqPriceNum} (Discount: ${riskEvaluation.discountPercent}%, Risk: ${riskEvaluation.riskScore}). ${riskEvaluation.reason}`,
+            reason: `Customer counter-offer: INR ${reqPriceNum} (Discount: ${riskEvaluation.discountPercent}%, Risk: ${riskEvaluation.riskScore}). Routed to ${approvalStage}. ${riskEvaluation.reason}`,
             comments: message.trim()
           }
         });
@@ -513,10 +515,11 @@ const customerPortalController = {
         }
       });
 
+      const routedTo = riskEvaluation.discountPercent < 10 ? 'Sales Manager' : 'Finance Manager';
       res.status(201).json({
         success: true,
         message: riskEvaluation.requiresApproval
-          ? 'Counter-proposal received and routed to Sales Manager for governance approval.'
+          ? `Counter-proposal received and routed to ${routedTo} for governance approval.`
           : 'Counter-proposal received and routed to your Sales Representative.',
         data: {
           negotiation,

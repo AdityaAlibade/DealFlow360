@@ -14,8 +14,7 @@ const ApprovalDetailPage = () => {
   const navigate = useNavigate();
   const { user, role } = useAuth();
   const currentRole = (user?.role || role || '').toLowerCase().trim();
-  const canApprove = currentRole === 'sales_manager' || currentRole === 'finance_ops';
-
+  // canApprove is determined after approval data loads — computed below
   const [approval, setApproval] = useState(null);
   const [loading, setLoading] = useState(true);
   const [modalType, setModalType] = useState(null); // 'approve' | 'return' | 'reject'
@@ -66,6 +65,13 @@ const ApprovalDetailPage = () => {
   const customer = quotation?.customer || {};
   const items = quotation?.items || [];
   const status = (approval?.status || quotation?.status || 'PENDING').toUpperCase();
+  const approvalStage = approval?.stage || 'Sales Manager'; // 'Sales Manager' | 'Finance Manager'
+
+  // Stage-aware access: Sales Manager approvals need SALES_MANAGER role;
+  // Finance Manager approvals need FINANCE_OPS or FINANCE_APPROVER role
+  const canApprove =
+    (approvalStage === 'Sales Manager' && currentRole === 'sales_manager') ||
+    (approvalStage === 'Finance Manager' && (currentRole === 'finance_ops' || currentRole === 'finance_approver'));
 
   const riskLines = items.map((it) => {
     const discount = Number(it.discountPct || it.discount || 0);
@@ -98,7 +104,19 @@ const ApprovalDetailPage = () => {
               Approval Request: <span className="text-[#a459a8]">{quotation.quoteNumber || quotation.id || id}</span>
             </h1>
             <p className="text-xs text-slate-500">
-              Customer: {customer.companyName || customer.name || 'Customer'} &bull; Total Value: ₹{Number(quotation.totalAmount || quotation.amount || 0).toLocaleString('en-IN')}
+              Customer: {customer.companyName || customer.name || 'Customer'} &bull; Total Value: INR {Number(quotation.totalAmount || quotation.amount || 0).toLocaleString('en-IN')}
+            </p>
+            <p className="text-xs mt-0.5">
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                approvalStage === 'Finance Manager'
+                  ? 'bg-orange-100 text-orange-700'
+                  : 'bg-purple-100 text-purple-700'
+              }`}>
+                Routed to: {approvalStage}
+              </span>
+              {!canApprove && status === 'PENDING' && (
+                <span className="ml-2 text-slate-400">You do not have authority to approve this stage.</span>
+              )}
             </p>
           </div>
         </div>

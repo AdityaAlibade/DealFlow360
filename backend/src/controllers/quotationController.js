@@ -484,17 +484,21 @@ const quotationController = {
         data: { status: 'PENDING_APPROVAL' }
       });
 
+      // Route to Sales Manager if risk score < 10, otherwise Finance Manager
+      const riskScore = quote.blendedRiskScore || 0;
+      const approvalStage = riskScore < 10 ? 'Sales Manager' : 'Finance Manager';
+
       await prisma.approval.create({
         data: {
           quotationId: quote.id,
-          stage: 'Sales Manager',
+          stage: approvalStage,
           status: 'PENDING',
-          riskLevel: quote.blendedRiskScore > 40 ? 'HIGH' : 'MEDIUM',
-          reason: 'Submitted for managerial approval review'
+          riskLevel: riskScore > 40 ? 'HIGH' : 'MEDIUM',
+          reason: `Submitted for ${approvalStage} approval review (Risk Score: ${riskScore})`
         }
       });
 
-      res.status(200).json({ success: true, message: 'Quotation submitted for managerial approval.' });
+      res.status(200).json({ success: true, message: `Quotation submitted for ${approvalStage} approval.` });
     } catch (error) {
       next(error);
     }

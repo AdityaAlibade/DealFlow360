@@ -52,8 +52,23 @@ export const subscriptionAPI = {
     try {
       const res = await axios.post(`${API_BASE_URL}/subscriptions/plans`, planData, { headers: getHeaders() });
       return res.data;
-    } catch {
+    } catch (err) {
+      if (err.response?.data?.message) {
+        throw new Error(err.response.data.message);
+      }
       return apiClient('/subscriptions/plans', { method: 'POST', body: planData });
+    }
+  },
+
+  deletePlan: async (id) => {
+    try {
+      const res = await axios.delete(`${API_BASE_URL}/subscriptions/plans/${id}`, { headers: getHeaders() });
+      return res.data;
+    } catch (err) {
+      if (err.response?.data?.message) {
+        throw new Error(err.response.data.message);
+      }
+      return apiClient(`/subscriptions/plans/${id}`, { method: 'DELETE' });
     }
   },
 

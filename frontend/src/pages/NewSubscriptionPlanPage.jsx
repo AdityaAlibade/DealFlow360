@@ -130,12 +130,12 @@ const NewSubscriptionPlanPage = () => {
         await subscriptionAPI.create(payload);
       }
 
-      setSubmitSuccess(`Subscription Plan "${formData.planName}" created successfully!`);
+      setSubmitSuccess(`Subscription Plan "${formData.planName}" published successfully!`);
       setTimeout(() => {
         navigate('/subscriptions');
       }, 1500);
     } catch (err) {
-      setSubmitError(err.message || 'Failed to create subscription plan');
+      setSubmitError(err.response?.data?.message || err.message || 'Failed to create subscription plan');
     } finally {
       setIsSubmitting(false);
     }

@@ -54,10 +54,116 @@ const subscriptionController = {
   getPlans: async (req, res, next) => {
     try {
       const plans = await prisma.subscriptionPlan.findMany({
-        where: { isActive: true },
         orderBy: { price: 'asc' }
       });
       res.status(200).json({ success: true, count: plans.length, data: plans });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * POST /api/subscriptions/plans
+   * Create and publish a new subscription plan
+   */
+  createPlan: async (req, res, next) => {
+    try {
+      const {
+        planName,
+        name,
+        planCode,
+        slug,
+        description,
+        price,
+        billingCycle = 'MONTHLY',
+        trialDays = 14,
+        maxQuotes = 50,
+        userLimit,
+        maxUsers = 5,
+        features = [],
+        status,
+        isActive = true
+      } = req.body;
+
+      const finalName = (planName || name || '').trim();
+      const parsedPrice = parseFloat(price);
+
+      if (!finalName) {
+        return res.status(400).json({
+          success: false,
+          message: 'Plan name is required.'
+        });
+      }
+
+      if (isNaN(parsedPrice) || parsedPrice <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please provide a valid price greater than 0.'
+        });
+      }
+
+      // Generate a clean unique slug
+      let baseSlug = (slug || planCode || finalName)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+
+      if (!baseSlug) {
+        baseSlug = `plan-${Date.now()}`;
+      }
+
+      let uniqueSlug = baseSlug;
+      let counter = 1;
+      while (await prisma.subscriptionPlan.findUnique({ where: { slug: uniqueSlug } })) {
+        uniqueSlug = `${baseSlug}-${counter}`;
+        counter++;
+      }
+
+      const validCycles = ['MONTHLY', 'QUARTERLY', 'ANNUAL'];
+      const cycleUpper = (billingCycle || 'MONTHLY').toUpperCase();
+      const finalCycle = validCycles.includes(cycleUpper) ? cycleUpper : 'MONTHLY';
+
+      const plan = await prisma.subscriptionPlan.create({
+        data: {
+          slug: uniqueSlug,
+          name: finalName,
+          description: description || null,
+          price: parsedPrice,
+          billingCycle: finalCycle,
+          trialDays: parseInt(trialDays, 10) || 0,
+          maxQuotes: parseInt(maxQuotes, 10) || 50,
+          maxUsers: parseInt(userLimit || maxUsers, 10) || 5,
+          features: Array.isArray(features) ? JSON.stringify(features) : (typeof features === 'string' ? features : null),
+          isActive: status ? status === 'ACTIVE' : Boolean(isActive)
+        }
+      });
+
+      try {
+        await prisma.auditLog.create({
+          data: {
+            userId: req.user?.id || null,
+            userRole: req.user?.role || 'ADMIN',
+            action: 'CREATE_SUBSCRIPTION_PLAN',
+            resource: 'SUBSCRIPTION_PLAN',
+            resourceId: plan.id,
+            newValue: {
+              slug: plan.slug,
+              name: plan.name,
+              price: plan.price,
+              billingCycle: plan.billingCycle
+            },
+            reason: `Published subscription plan "${plan.name}"`
+          }
+        });
+      } catch (auditErr) {
+        console.warn('Could not record audit log for subscription plan:', auditErr.message);
+      }
+
+      res.status(201).json({
+        success: true,
+        message: `Subscription Plan "${plan.name}" published successfully!`,
+        data: plan
+      });
     } catch (error) {
       next(error);
     }
@@ -253,6 +359,24 @@ const subscriptionController = {
       }
 
       res.status(200).json({ success: true, schedule });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * DELETE /api/subscriptions/plans/:id
+   */
+  deletePlan: async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const plan = await prisma.subscriptionPlan.findFirst({
+        where: { OR: [{ id }, { slug: id }] }
+      });
+      if (!plan) return res.status(404).json({ success: false, message: 'Plan not found.' });
+
+      await prisma.subscriptionPlan.delete({ where: { id: plan.id } });
+      res.status(200).json({ success: true, message: 'Plan removed successfully.' });
     } catch (error) {
       next(error);
     }

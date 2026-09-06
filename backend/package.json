@@ -10,6 +10,8 @@
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:seed": "node prisma/seed.js",
+    "db:seed-demo": "node prisma/seed_demo.js",
+    "db:counts": "node scripts/check_counts.js",
     "db:studio": "prisma studio",
     "test": "jest",
     "lint": "eslint src/**/*.js"

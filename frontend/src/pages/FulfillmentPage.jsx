@@ -9,7 +9,8 @@ import {
   RefreshCw,
   Clock,
   ArrowRight,
-  Sparkles
+  Sparkles,
+  Lock
 } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
 import Card from '../components/common/Card';
@@ -17,9 +18,14 @@ import Badge from '../components/common/Badge';
 import Button from '../components/common/Button';
 import Modal from '../components/common/Modal';
 import { fulfillmentAPI } from '../api/fulfillmentAPI';
+import { useAuth } from '../contexts/AuthContext';
 
 const FulfillmentPage = () => {
   const navigate = useNavigate();
+  const { user, role } = useAuth();
+  const currentRole = (user?.role || role || '').toLowerCase().trim();
+  const isReadOnly = currentRole === 'sales_rep';
+
   const [activeTab, setActiveTab] = useState('orders'); // 'orders' | 'inventory' | 'backorders'
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState([]);
@@ -178,14 +184,21 @@ const FulfillmentPage = () => {
           >
             Refresh
           </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            icon={PlusCircle}
-            onClick={() => setRestockModalOpen(true)}
-          >
-            Restock Warehouse
-          </Button>
+          {!isReadOnly ? (
+            <Button
+              variant="primary"
+              size="sm"
+              icon={PlusCircle}
+              onClick={() => setRestockModalOpen(true)}
+            >
+              Restock Warehouse
+            </Button>
+          ) : (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 text-xs font-semibold rounded-lg border border-amber-200">
+              <Lock className="w-3.5 h-3.5" />
+              <span>Read-Only Inventory</span>
+            </div>
+          )}
         </div>
       </div>
 

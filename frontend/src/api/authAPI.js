@@ -24,6 +24,16 @@ export const authAPI = {
     }
   },
 
+  registerCustomer: async (customerData) => {
+    try {
+      const res = await axios.post(`${API_BASE_URL}/auth/register-customer`, customerData);
+      return res.data;
+    } catch (err) {
+      if (err.response?.data) return err.response.data;
+      throw new Error(err.message || 'Failed to create customer account');
+    }
+  },
+
   getCurrentUser: async () => {
     try {
       const token = localStorage.getItem('dealflow360_token');

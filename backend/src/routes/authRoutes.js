@@ -7,6 +7,7 @@ const { passwordResetRateLimiter } = require('../middleware/rateLimiter');
 
 // Standard Auth Endpoints
 router.post('/register', authController.register);
+router.post('/register-customer', authController.registerCustomer);
 router.post('/login', authController.login);
 router.post('/logout', verifyToken, authController.logout);
 router.post('/refresh-token', authController.refreshToken);

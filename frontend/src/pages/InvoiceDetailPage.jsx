@@ -1,16 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CreditCard, Download, Printer, CheckCircle2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, CreditCard, Download, Printer, CheckCircle2, AlertCircle, Lock } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
 import Card from '../components/common/Card';
 import Badge from '../components/common/Badge';
 import Button from '../components/common/Button';
 import Modal from '../components/common/Modal';
 import invoiceAPI from '../api/invoiceAPI';
+import { useAuth } from '../contexts/AuthContext';
 
 const InvoiceDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user, role } = useAuth();
+  const currentRole = (user?.role || role || '').toLowerCase().trim();
+  const isReadOnly = currentRole === 'sales_rep';
+
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
@@ -92,14 +97,21 @@ const InvoiceDetailPage = () => {
             Print
           </Button>
           {!isPaid && (
-            <Button
-              variant="primary"
-              size="sm"
-              icon={CreditCard}
-              onClick={() => setPaymentModalOpen(true)}
-            >
-              Record Payment
-            </Button>
+            !isReadOnly ? (
+              <Button
+                variant="primary"
+                size="sm"
+                icon={CreditCard}
+                onClick={() => setPaymentModalOpen(true)}
+              >
+                Record Payment
+              </Button>
+            ) : (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-600 text-xs font-semibold rounded-lg border border-slate-200">
+                <Lock className="w-3.5 h-3.5 text-slate-500" />
+                <span>Read-Only Ledger</span>
+              </div>
+            )
           )}
         </div>
       </div>

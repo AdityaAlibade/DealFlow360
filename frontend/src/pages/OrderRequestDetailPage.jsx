@@ -255,22 +255,63 @@ const OrderRequestDetailPage = () => {
                           </span>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                          {(inventory.warehouses || [
-                            { code: 'WH-A', name: 'Central Warehouse Bangalore', available: 45 },
-                            { code: 'WH-B', name: 'Western Hub Mumbai', available: 20 },
-                            { code: 'WH-C', name: 'Northern Center Delhi', available: 15 }
-                          ]).map((wh) => (
-                            <div key={wh.code} className="p-2 bg-white rounded-lg border border-slate-200 flex justify-between items-center">
-                              <div>
-                                <span className="font-bold text-slate-800 text-[11px]">{wh.name || wh.code}</span>
-                                <span className="text-[10px] text-slate-400 block">{wh.code}</span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
+                          {(inventory.warehouses || []).map((wh) => {
+                            const isMain = wh.isMain || wh.code === 'BOM-1' || wh.warehouseCode === 'BOM-1' || (wh.name || wh.warehouseName || '').toLowerCase().includes('central') || (wh.name || wh.warehouseName || '').toLowerCase().includes('main');
+                            const displayName = wh.name || wh.warehouseName || (wh.code === 'BOM-1' ? 'Central Fulfillment Hub Mumbai' : wh.code ? `Regional Depot ${wh.code}` : 'Fulfillment Hub');
+                            const displayCode = wh.code || wh.warehouseCode || 'WH';
+                            const hasEnoughStock = (wh.available || 0) >= item.quantity;
+                            const isOutOfStock = (wh.available || 0) === 0;
+
+                            return (
+                              <div
+                                key={displayCode}
+                                className={`p-3 rounded-xl border transition-all flex flex-col justify-between gap-2.5 ${
+                                  isMain
+                                    ? 'bg-purple-50/60 border-purple-200 shadow-2xs'
+                                    : isOutOfStock
+                                    ? 'bg-slate-50/80 border-slate-200 opacity-80'
+                                    : 'bg-white border-slate-200 hover:border-slate-300'
+                                }`}
+                              >
+                                <div>
+                                  <div className="flex items-center justify-between gap-1 mb-1">
+                                    <span className="font-bold text-slate-900 text-xs line-clamp-1" title={displayName}>
+                                      {displayName}
+                                    </span>
+                                    {isMain && (
+                                      <span className="px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider bg-purple-100 text-purple-700 rounded-md border border-purple-200 shrink-0">
+                                        ⭐ Main Hub
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-mono">
+                                    <span className="bg-slate-100 text-slate-700 font-bold px-1.5 py-0.2 rounded border border-slate-200/60">{displayCode}</span>
+                                    {wh.location && (
+                                      <span className="truncate text-slate-400" title={wh.location}>
+                                        {wh.location.split(',')[0]}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                                  <span className="text-[10px] text-slate-500 font-medium">Available:</span>
+                                  <span
+                                    className={`font-bold px-2 py-0.5 rounded text-[11px] ${
+                                      isOutOfStock
+                                        ? 'bg-red-50 text-red-600 border border-red-100'
+                                        : hasEnoughStock
+                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                        : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                    }`}
+                                  >
+                                    {wh.available || 0} in stock
+                                  </span>
+                                </div>
                               </div>
-                              <span className="font-bold text-purple-700 bg-purple-50 px-2 py-1 rounded text-xs">
-                                {wh.available || 0} in stock
-                              </span>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     </div>

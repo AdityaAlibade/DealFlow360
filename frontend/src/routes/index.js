@@ -53,6 +53,10 @@ import ReportsPage from '../pages/ReportsPage';
 import ProductPage from '../pages/ProductPage';
 import ProductDetailPage from '../pages/ProductDetailPage';
 
+// Customers
+import CustomerPage from '../pages/CustomerPage';
+import CustomerDetailPage from '../pages/CustomerDetailPage';
+
 // Profile
 import ProfilePage from '../pages/ProfilePage';
 
@@ -449,6 +453,32 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute requiredPermission={PERMISSIONS.PRODUCT_READ}>
             <ProductDetailPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* 12. Customers */}
+      <Route
+        path="/customers"
+        element={
+          <ProtectedRoute>
+            <CustomerPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/customers/new"
+        element={
+          <ProtectedRoute>
+            <CustomerDetailPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/customers/:id"
+        element={
+          <ProtectedRoute>
+            <CustomerDetailPage />
           </ProtectedRoute>
         }
       />

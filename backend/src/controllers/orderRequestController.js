@@ -265,17 +265,29 @@ const orderRequestController = {
         orderBy: { code: 'asc' }
       });
 
+      const formattedWarehouses = warehouses.map((w) => ({
+        ...w,
+        isMain: w.code === 'BOM-1' || (w.name || '').toLowerCase().includes('central') || (w.name || '').toLowerCase().includes('main')
+      }));
+
       // Compute item-by-item stock feasibility
       const feasibility = request.items.map((item) => {
-        const stockByWarehouse = (item.product?.stockLevels || []).map((sl) => ({
-          warehouseId: sl.warehouseId,
-          warehouseCode: sl.warehouse?.code,
-          warehouseName: sl.warehouse?.name,
-          location: sl.warehouse?.location,
-          inStock: sl.inStock,
-          reserved: sl.reserved,
-          available: sl.available
-        }));
+        const stockByWarehouse = (item.product?.stockLevels || []).map((sl) => {
+          const isMain = sl.warehouse?.code === 'BOM-1' || (sl.warehouse?.name || '').toLowerCase().includes('central') || (sl.warehouse?.name || '').toLowerCase().includes('main');
+          return {
+            id: sl.warehouseId,
+            warehouseId: sl.warehouseId,
+            code: sl.warehouse?.code || 'WH',
+            name: sl.warehouse?.name || sl.warehouse?.code || 'Regional Warehouse',
+            warehouseCode: sl.warehouse?.code || 'WH',
+            warehouseName: sl.warehouse?.name || sl.warehouse?.code || 'Regional Warehouse',
+            location: sl.warehouse?.location || '',
+            inStock: sl.inStock || 0,
+            reserved: sl.reserved || 0,
+            available: sl.available || 0,
+            isMain
+          };
+        });
 
         const totalAvailable = stockByWarehouse.reduce((s, w) => s + w.available, 0);
         const isFullyAvailable = totalAvailable >= item.quantity;
@@ -316,7 +328,7 @@ const orderRequestController = {
           ...request,
           items: enrichedItems,
           feasibility,
-          warehouses,
+          warehouses: formattedWarehouses,
           activeQuotation: request.quotations?.[0] || null
         }
       });

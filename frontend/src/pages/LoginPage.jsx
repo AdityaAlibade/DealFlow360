@@ -54,12 +54,12 @@ const LoginPage = () => {
     }
   };
 
-  const handleDirectLogin = (roleKey) => {
+  const handleDirectLogin = async (roleKey) => {
     setError(null);
     try {
-      const loggedUser = directLogin(roleKey);
-      if (loggedUser) {
-        const destination = getPortalDestination(loggedUser.role);
+      const res = await directLogin(roleKey);
+      if (res && res.user) {
+        const destination = getPortalDestination(res.user.role);
         navigate(destination);
       }
     } catch {

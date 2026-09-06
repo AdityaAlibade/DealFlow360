@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { hasPermission, PERMISSIONS } from '../utils/permissions';
 import { logAuditEvent, AUDIT_ACTIONS } from '../utils/auditLogger';
 
@@ -38,6 +39,7 @@ const ENDPOINT_PERMISSIONS = {
 export const apiClient = async (endpoint, options = {}) => {
   const method = (options.method || 'GET').toUpperCase();
   const activeRole = localStorage.getItem('dealflow360_role') || localStorage.getItem('dealflow360_user_role') || 'sales_rep';
+  const token = localStorage.getItem('dealflow360_token');
 
   // 1. Customer Isolation: Prevent customer role from calling internal APIs
   const isCustomerPortalRoute = endpoint.startsWith('/customer-portal');
@@ -78,8 +80,37 @@ export const apiClient = async (endpoint, options = {}) => {
     }
   }
 
-  console.log(`[API Request] [Auth: ${activeRole}] ${method} ${BASE_URL}${endpoint}`);
-  return { success: true, endpoint, method, timestamp: new Date().toISOString() };
+  const url = `${BASE_URL}${endpoint}`;
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token && { Authorization: `Bearer ${token}` }),
+    ...(options.headers || {})
+  };
+
+  let requestData = options.body;
+  if (typeof requestData === 'string') {
+    try {
+      requestData = JSON.parse(requestData);
+    } catch {
+      // keep as string
+    }
+  }
+
+  try {
+    const response = await axios({
+      url,
+      method,
+      headers,
+      data: requestData,
+      params: options.params
+    });
+    return response.data;
+  } catch (err) {
+    if (err.response && err.response.data) {
+      return err.response.data;
+    }
+    throw err;
+  }
 };
 
 export default apiClient;

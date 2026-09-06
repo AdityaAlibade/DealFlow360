@@ -63,10 +63,15 @@ const productController = {
    */
   create: async (req, res, next) => {
     try {
-      const { sku, name, description, category, basePrice, standardCost, taxRate = 18.0, unit = 'Units', isSubscription = false } = req.body;
+      const { sku, name, description, category, basePrice, standardCost, taxRate = 18.0, unit = 'Units', isSubscription = false, initialStock = 20 } = req.body;
 
       if (!sku || !name || !category || basePrice === undefined) {
         return res.status(400).json({ success: false, message: 'SKU, name, category, and basePrice are required.' });
+      }
+
+      const existing = await prisma.product.findUnique({ where: { sku } });
+      if (existing) {
+        return res.status(400).json({ success: false, message: `Product with SKU ${sku} already exists.` });
       }
 
       const product = await prisma.product.create({
@@ -83,7 +88,27 @@ const productController = {
         }
       });
 
-      res.status(201).json({ success: true, message: 'Product created successfully.', data: product });
+      // Initialize stock levels across all active warehouses
+      const activeWarehouses = await prisma.warehouse.findMany({ where: { status: 'ACTIVE' } });
+      for (const wh of activeWarehouses) {
+        const perWhStock = Math.max(5, Math.floor(Number(initialStock) / (activeWarehouses.length || 1)));
+        await prisma.stockLevel.create({
+          data: {
+            productId: product.id,
+            warehouseId: wh.id,
+            inStock: perWhStock,
+            available: perWhStock,
+            reserved: 0
+          }
+        });
+      }
+
+      const createdProduct = await prisma.product.findUnique({
+        where: { id: product.id },
+        include: { stockLevels: { include: { warehouse: true } } }
+      });
+
+      res.status(201).json({ success: true, message: 'Product created successfully in PostgreSQL with initial multi-warehouse inventory.', data: createdProduct });
     } catch (error) {
       next(error);
     }

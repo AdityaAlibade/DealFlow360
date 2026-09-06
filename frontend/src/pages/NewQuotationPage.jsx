@@ -18,7 +18,10 @@ import {
   Inbox,
   ExternalLink,
   Info,
-  RefreshCw
+  RefreshCw,
+  Warehouse,
+  Building2,
+  Boxes
 } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
 import Card from '../components/common/Card';
@@ -29,6 +32,7 @@ import Select from '../components/common/Select';
 import quotationAPI from '../api/quotationAPI';
 import orderRequestAPI from '../api/orderRequestAPI';
 import productAPI from '../api/productAPI';
+import warehouseAPI from '../api/warehouseAPI';
 
 const NewQuotationPage = () => {
   const navigate = useNavigate();
@@ -40,6 +44,8 @@ const NewQuotationPage = () => {
   // Real Database Lists
   const [customers, setCustomers] = useState([]);
   const [products, setProducts] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
+  const [selectedWarehouseFilter, setSelectedWarehouseFilter] = useState('ALL');
   const [loadingInitial, setLoadingInitial] = useState(true);
 
   // Order Request State
@@ -73,18 +79,33 @@ const NewQuotationPage = () => {
   // Selected customer object from real DB list
   const selectedCustomer = customers.find((c) => c.id === selectedCustomerId);
 
-  // 1. Fetch Real Customers & Real Products from PostgreSQL
+  // Helper to compute available stock in warehouse
+  const getStockForProductAndWarehouse = (productId, warehouseId) => {
+    const prod = products.find((p) => p.id === productId || p.sku === productId);
+    if (!prod || !prod.stockLevels) return 0;
+    if (!warehouseId || warehouseId === 'ALL') {
+      return prod.stockLevels.reduce((acc, sl) => acc + (sl.available || 0), 0);
+    }
+    const sl = prod.stockLevels.find(
+      (s) => s.warehouseId === warehouseId || s.warehouse?.code === warehouseId || s.warehouse?.id === warehouseId
+    );
+    return sl ? (sl.available || 0) : 0;
+  };
+
+  // 1. Fetch Real Customers, Products & Warehouses from PostgreSQL
   useEffect(() => {
     const loadMasterData = async () => {
       try {
         setLoadingInitial(true);
-        const [custRes, prodRes] = await Promise.all([
+        const [custRes, prodRes, whRes] = await Promise.all([
           quotationAPI.getCustomers(),
-          productAPI.getAll()
+          productAPI.getAll(),
+          warehouseAPI.getAll()
         ]);
 
         let loadedCustomers = [];
         let loadedProducts = [];
+        let loadedWarehouses = [];
 
         if (custRes && custRes.data) {
           loadedCustomers = custRes.data;
@@ -96,6 +117,13 @@ const NewQuotationPage = () => {
           setProducts(prodRes.data);
         }
 
+        if (whRes && whRes.data) {
+          loadedWarehouses = whRes.data;
+          setWarehouses(whRes.data);
+        }
+
+        const mainWh = loadedWarehouses.find((w) => w.isMain || w.code === 'BOM-1') || loadedWarehouses[0];
+
         // Set default item if none and not from request
         if (!orderRequestId && loadedProducts.length > 0 && items.length === 0) {
           const first = loadedProducts[0];
@@ -105,6 +133,7 @@ const NewQuotationPage = () => {
               productId: first.id,
               name: first.name,
               sku: first.sku,
+              warehouseId: mainWh?.id || 'wh-bom-01',
               qty: 1,
               price: Number(first.basePrice || 0),
               standardCost: Number(first.standardCost || 0),
@@ -115,7 +144,7 @@ const NewQuotationPage = () => {
           ]);
         }
       } catch (err) {
-        console.warn('Failed to fetch real customers or products:', err);
+        console.warn('Failed to fetch real customers, products or warehouses:', err);
       } finally {
         setLoadingInitial(false);
       }
@@ -628,22 +657,86 @@ const NewQuotationPage = () => {
                 <p className="text-xs text-red-500 font-medium mb-3">{errors.items}</p>
               )}
 
+              {/* Warehouse Filter Bar for Sales Rep */}
+              <div className="mb-4 p-3 bg-slate-50 border border-slate-200/90 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Warehouse className="w-4 h-4 text-[#a459a8]" />
+                  <span className="text-xs font-bold text-slate-800">Filter Products by Warehouse:</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedWarehouseFilter('ALL')}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${
+                      selectedWarehouseFilter === 'ALL'
+                        ? 'bg-slate-900 text-white shadow-2xs'
+                        : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    All Warehouses ({products.length})
+                  </button>
+                  {warehouses.map((wh) => {
+                    const isMain = wh.isMain || wh.code === 'BOM-1' || (wh.name || '').toLowerCase().includes('central');
+                    const countForWh = products.filter((p) => {
+                      const sl = (p.stockLevels || []).find((s) => s.warehouseId === wh.id || s.warehouse?.code === wh.code);
+                      return sl && (sl.available || 0) > 0;
+                    }).length;
+
+                    return (
+                      <button
+                        key={wh.id}
+                        type="button"
+                        onClick={() => setSelectedWarehouseFilter(wh.id)}
+                        className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all flex items-center gap-1 ${
+                          selectedWarehouseFilter === wh.id
+                            ? isMain
+                              ? 'bg-[#a459a8] text-white shadow-2xs'
+                              : 'bg-slate-800 text-white shadow-2xs'
+                            : isMain
+                            ? 'bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100'
+                            : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        {isMain && <span>⭐</span>}
+                        <span>{wh.code}</span>
+                        <span className="text-[10px] opacity-80 font-normal">({countForWh})</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider">
                     <tr>
                       <th className="py-2.5 px-3">Product / Service</th>
-                      <th className="py-2.5 px-2 w-20 text-center">Qty</th>
-                      <th className="py-2.5 px-2 w-28 text-right">Unit Price</th>
-                      <th className="py-2.5 px-2 w-28 text-center">Discount %</th>
-                      <th className="py-2.5 px-2 w-28 text-right">Net Price</th>
-                      <th className="py-2.5 px-2 w-24 text-center">Margin</th>
-                      <th className="py-2.5 px-2 w-12 text-center">Action</th>
+                      <th className="py-2.5 px-2.5 w-44">Source Warehouse</th>
+                      <th className="py-2.5 px-2 w-16 text-center">Qty</th>
+                      <th className="py-2.5 px-2 w-24 text-right">Unit Price</th>
+                      <th className="py-2.5 px-2 w-24 text-center">Disc %</th>
+                      <th className="py-2.5 px-2 w-24 text-right">Net Price</th>
+                      <th className="py-2.5 px-2 w-20 text-center">Margin</th>
+                      <th className="py-2.5 px-2 w-10 text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {items.map((item, idx) => {
                       const metrics = calculateLineMetrics(item);
+                      const currentWh = warehouses.find((w) => w.id === item.warehouseId) || warehouses.find((w) => w.isMain || w.code === 'BOM-1') || warehouses[0];
+                      const availableInWh = getStockForProductAndWarehouse(item.productId, currentWh?.id);
+                      const hasEnough = availableInWh >= (item.qty || 1);
+                      const isMainWh = currentWh?.isMain || currentWh?.code === 'BOM-1' || (currentWh?.name || '').toLowerCase().includes('central');
+
+                      const availableProducts = selectedWarehouseFilter === 'ALL'
+                        ? products
+                        : products.filter((p) => {
+                            const sl = (p.stockLevels || []).find(
+                              (s) => s.warehouseId === selectedWarehouseFilter || s.warehouse?.code === selectedWarehouseFilter || s.warehouse?.id === selectedWarehouseFilter
+                            );
+                            return sl && (sl.available || 0) > 0;
+                          });
+
                       return (
                         <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
                           {/* Product Selection */}
@@ -653,7 +746,7 @@ const NewQuotationPage = () => {
                               onChange={(e) => handleItemChange(idx, 'productId', e.target.value)}
                               className="w-full text-xs font-semibold text-slate-800 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#a459a8]"
                             >
-                              {products.map((prod) => (
+                              {(availableProducts.length > 0 ? availableProducts : products).map((prod) => (
                                 <option key={prod.id} value={prod.id}>
                                   {prod.name} ({prod.sku}) - ₹{Number(prod.basePrice || 0).toLocaleString('en-IN')}
                                 </option>
@@ -662,6 +755,42 @@ const NewQuotationPage = () => {
                             <span className="text-[10px] text-slate-400 block mt-1 font-mono">
                               SKU: {item.sku} &bull; Tax: {item.taxRate}%
                             </span>
+                          </td>
+
+                          {/* Warehouse Selection with Live Stock */}
+                          <td className="py-3 px-2.5">
+                            <select
+                              value={item.warehouseId || currentWh?.id || ''}
+                              onChange={(e) => handleItemChange(idx, 'warehouseId', e.target.value)}
+                              className="w-full text-xs font-semibold text-slate-800 bg-white border border-slate-300 rounded-lg px-2 py-1.5 focus:outline-none focus:border-[#a459a8]"
+                            >
+                              {warehouses.map((wh) => {
+                                const isMain = wh.isMain || wh.code === 'BOM-1' || (wh.name || '').toLowerCase().includes('central');
+                                const avail = getStockForProductAndWarehouse(item.productId, wh.id);
+                                return (
+                                  <option key={wh.id} value={wh.id}>
+                                    {isMain ? '⭐ ' : ''}{wh.code} - {wh.name} ({avail} in stock)
+                                  </option>
+                                );
+                              })}
+                            </select>
+                            <div className="flex items-center justify-between gap-1 mt-1 text-[10px]">
+                              <span className="text-slate-500 font-mono flex items-center gap-1">
+                                {isMainWh && <span className="text-purple-700 font-bold">Main Hub</span>}
+                                <span>{currentWh?.code || 'WH'}</span>
+                              </span>
+                              <span
+                                className={`font-bold px-1.5 py-0.2 rounded ${
+                                  availableInWh === 0
+                                    ? 'bg-red-50 text-red-600'
+                                    : hasEnough
+                                    ? 'bg-emerald-50 text-emerald-700'
+                                    : 'bg-amber-50 text-amber-700'
+                                }`}
+                              >
+                                {availableInWh} in stock
+                              </span>
+                            </div>
                           </td>
 
                           {/* Quantity */}
@@ -681,14 +810,14 @@ const NewQuotationPage = () => {
                           {/* Unit Price */}
                           <td className="py-3 px-2">
                             <div className="relative">
-                              <span className="absolute left-2.5 top-1.5 text-slate-400 text-xs">₹</span>
+                              <span className="absolute left-2 top-1.5 text-slate-400 text-xs">₹</span>
                               <input
                                 type="number"
                                 min="0"
                                 step="100"
                                 value={item.price}
                                 onChange={(e) => handleItemChange(idx, 'price', e.target.value)}
-                                className="w-full text-right text-xs font-semibold text-slate-800 bg-white border border-slate-300 rounded-lg pl-6 pr-2 py-1.5 focus:outline-none focus:border-[#a459a8]"
+                                className="w-full text-right text-xs font-semibold text-slate-800 bg-white border border-slate-300 rounded-lg pl-5 pr-1.5 py-1.5 focus:outline-none focus:border-[#a459a8]"
                               />
                             </div>
                           </td>
@@ -703,19 +832,19 @@ const NewQuotationPage = () => {
                                 step="0.5"
                                 value={item.discount}
                                 onChange={(e) => handleItemChange(idx, 'discount', e.target.value)}
-                                className={`w-full text-center text-xs font-bold rounded-lg px-2 py-1.5 border focus:outline-none ${
+                                className={`w-full text-center text-xs font-bold rounded-lg px-1.5 py-1.5 border focus:outline-none ${
                                   metrics.isOverLimit
                                     ? 'bg-red-50 border-red-300 text-red-700 focus:border-red-500'
                                     : 'bg-white border-slate-300 text-slate-800 focus:border-[#a459a8]'
                                 }`}
                               />
-                              <span className="absolute right-2 top-1.5 text-[10px] text-slate-400">%</span>
+                              <span className="absolute right-1.5 top-1.5 text-[10px] text-slate-400">%</span>
                             </div>
-                            <span className={`text-[10px] block mt-1 text-center font-medium ${
+                            <span className={`text-[9px] block mt-1 text-center font-medium ${
                               metrics.isOverLimit ? 'text-red-600 font-bold' : 'text-slate-400'
                             }`}>
                               Limit: {item.allowedLimit}%
-                              {metrics.isOverLimit && ' ⚠️ Exceeded'}
+                              {metrics.isOverLimit && ' ⚠️'}
                             </span>
                           </td>
 
@@ -733,7 +862,7 @@ const NewQuotationPage = () => {
 
                           {/* Margin % */}
                           <td className="py-3 px-2 text-center">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
                               metrics.marginPercent >= 25
                                 ? 'bg-emerald-50 text-emerald-700'
                                 : metrics.marginPercent >= 15

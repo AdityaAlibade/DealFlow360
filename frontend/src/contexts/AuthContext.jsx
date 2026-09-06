@@ -1,60 +1,36 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { ROLE_PERMISSIONS, hasPermission } from '../utils/permissions';
 import { logAuditEvent } from '../utils/auditLogger';
+import authAPI from '../api/authAPI';
 
 export const AuthContext = createContext(null);
 
-export const DEMO_ACCOUNTS = {
+// Default role credentials for one-click access in development/testing
+export const ROLE_CREDENTIALS = {
   admin: {
-    id: 'usr-admin-01',
-    name: 'Aditya Alibade',
     email: 'adityaalibade1046@gmail.com',
-    role: 'admin',
-    roleLabel: 'System Administrator',
-    avatar: 'AA',
-    department: 'Platform Administration',
-    token: 'jwt-admin-token-dealflow360'
+    password: 'password123',
+    roleLabel: 'System Administrator'
   },
   sales_manager: {
-    id: 'usr-mgr-02',
-    name: 'Priya Sharma',
     email: 'salesmanager@dealflow360.com',
-    role: 'sales_manager',
-    roleLabel: 'Sales Manager (L1 Approver)',
-    avatar: 'PS',
-    department: 'Sales Leadership',
-    token: 'jwt-salesmanager-token-dealflow360'
+    password: 'password123',
+    roleLabel: 'Sales Manager (L1 Approver)'
   },
   sales_rep: {
-    id: 'usr-rep-03',
-    name: 'Rajesh Kumar',
     email: 'salesrep@dealflow360.com',
-    role: 'sales_rep',
-    roleLabel: 'Sales Representative',
-    avatar: 'RK',
-    department: 'Enterprise Sales',
-    token: 'jwt-salesrep-token-dealflow360'
+    password: 'password123',
+    roleLabel: 'Sales Representative'
   },
   finance_ops: {
-    id: 'usr-fin-04',
-    name: 'Vikram Malhotra',
     email: 'financemanager@dealflow360.com',
-    role: 'finance_ops',
-    roleLabel: 'Finance Manager (L2 Approver)',
-    avatar: 'VM',
-    department: 'Finance & Operations',
-    token: 'jwt-financemanager-token-dealflow360'
+    password: 'password123',
+    roleLabel: 'Finance Manager (L2 Approver)'
   },
   customer: {
-    id: 'usr-cust-05',
-    name: 'Ananya Deshmukh',
     email: 'customer@dealflow360.com',
-    role: 'customer',
-    roleLabel: 'Customer Portal User (Tata Digital)',
-    avatar: 'AD',
-    department: 'Strategic Procurement',
-    token: 'demo-token-123',
-    portalToken: 'demo-token-123'
+    password: 'password123',
+    roleLabel: 'Customer Portal User'
   }
 };
 
@@ -63,41 +39,7 @@ export const AuthProvider = ({ children }) => {
     const saved = localStorage.getItem('dealflow360_user');
     if (saved) {
       try {
-        if (
-          saved.includes('Sarah Connor') ||
-          saved.includes('Marcus Vance') ||
-          saved.includes('Elena Rostova') ||
-          saved.includes('Alex Rivera') ||
-          saved.includes('David Sterling')
-        ) {
-          localStorage.removeItem('dealflow360_user');
-          localStorage.removeItem('dealflow360_auth_user');
-          localStorage.removeItem('dealflow360_token');
-          localStorage.removeItem('dealflow360_role');
-          return DEMO_ACCOUNTS.admin;
-        }
         return JSON.parse(saved);
-      } catch {
-        return DEMO_ACCOUNTS.admin;
-      }
-    }
-    return DEMO_ACCOUNTS.admin;
-  });
-
-  const [authUser, setAuthUser] = useState(() => {
-    const savedAuth = localStorage.getItem('dealflow360_auth_user');
-    if (savedAuth) {
-      try {
-        if (
-          savedAuth.includes('Sarah Connor') ||
-          savedAuth.includes('Marcus Vance') ||
-          savedAuth.includes('Elena Rostova') ||
-          savedAuth.includes('Alex Rivera') ||
-          savedAuth.includes('David Sterling')
-        ) {
-          return null;
-        }
-        return JSON.parse(savedAuth);
       } catch {
         return null;
       }
@@ -105,156 +47,133 @@ export const AuthProvider = ({ children }) => {
     return null;
   });
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Authenticated user determination:
-  // An authenticated Admin is either identified by authUser or user having admin role
-  const effectiveAuth = authUser || user;
-  const isAdmin = effectiveAuth?.role === 'admin';
-
+  // Validate session on app launch
   useEffect(() => {
-    if (user) {
-      localStorage.setItem('dealflow360_user', JSON.stringify(user));
-      localStorage.setItem('dealflow360_token', user.token || 'demo-token');
-      localStorage.setItem('dealflow360_role', user.role);
-    } else {
-      localStorage.removeItem('dealflow360_user');
-      localStorage.removeItem('dealflow360_token');
-      localStorage.removeItem('dealflow360_role');
-      localStorage.removeItem('dealflow360_auth_user');
-    }
-  }, [user]);
+    const initSession = async () => {
+      const token = localStorage.getItem('dealflow360_token');
+      if (token) {
+        try {
+          const res = await authAPI.getCurrentUser();
+          const liveUser = res?.data || res?.user || res;
+          if (liveUser && liveUser.id) {
+            const normalized = {
+              id: liveUser.id,
+              name: liveUser.fullName || liveUser.name,
+              fullName: liveUser.fullName || liveUser.name,
+              email: liveUser.email,
+              role: (liveUser.role || 'SALES_REP').toLowerCase(),
+              roleLabel: liveUser.role || 'Sales Representative',
+              avatar: liveUser.avatar || (liveUser.fullName || liveUser.email).substring(0, 2).toUpperCase(),
+              department: liveUser.department || 'Enterprise Sales',
+              token: token
+            };
+            setUser(normalized);
+            localStorage.setItem('dealflow360_user', JSON.stringify(normalized));
+            localStorage.setItem('dealflow360_role', normalized.role);
+          }
+        } catch {
+          console.warn('[AuthContext] Stored session invalid or expired.');
+        }
+      }
+      setLoading(false);
+    };
 
-  // Secure Role Switcher: Strictly restricted to Admin users only
-  const switchRole = (roleKey) => {
-    // 1. Security check: Only Admin may switch roles
-    if (!isAdmin) {
-      logAuditEvent({
-        user: user?.name || 'Unknown',
-        role: user?.role || 'UNKNOWN',
-        action: 'UNAUTHORIZED_ACCESS_ATTEMPT',
-        resource: 'RBAC_SWITCHER',
-        resourceId: roleKey,
-        result: 'FORBIDDEN_403',
-        reason: `Non-admin role '${user?.role}' attempted unauthorized role switch to '${roleKey}'`
-      });
-      console.warn(`[RBAC Security] Role switch to '${roleKey}' rejected. Only Admin portal has role switching privileges.`);
-      return null;
-    }
-
-    // 2. Security check: Customer portal cannot be assumed via role switcher
-    if (roleKey === 'customer') {
-      console.warn('[RBAC Security] Customer Portal access cannot be assumed via role switching.');
-      return null;
-    }
-
-    const target = DEMO_ACCOUNTS[roleKey];
-    if (target) {
-      setUser(target);
-      logAuditEvent({
-        user: target.name,
-        role: target.role,
-        action: 'ROLE_SWITCHED',
-        resource: 'AUTH_SESSION',
-        resourceId: target.id,
-        result: 'SUCCESS',
-        reason: `Switched active RBAC context to ${target.roleLabel}`
-      });
-      return target;
-    }
-    return null;
-  };
-
-  const directLogin = (roleKey) => {
-    const target = DEMO_ACCOUNTS[roleKey];
-    if (target) {
-      setUser(target);
-      setAuthUser(target);
-      localStorage.setItem('dealflow360_user', JSON.stringify(target));
-      localStorage.setItem('dealflow360_auth_user', JSON.stringify(target));
-      localStorage.setItem('dealflow360_token', target.token);
-      localStorage.setItem('dealflow360_role', target.role);
-      logAuditEvent({
-        user: target.name,
-        role: target.role,
-        action: 'DIRECT_ROLE_LOGIN',
-        resource: 'AUTH_SESSION',
-        resourceId: target.id,
-        result: 'SUCCESS',
-        reason: `Direct 1-click login as ${target.roleLabel}`
-      });
-      return target;
-    }
-    return null;
-  };
+    initSession();
+  }, []);
 
   const login = async (email, password) => {
     setLoading(true);
-    const cleanEmail = (email || '').trim().toLowerCase();
-    // Find matching demo account by email or alias
-    let match = Object.values(DEMO_ACCOUNTS).find(
-      (acc) => acc.email.toLowerCase() === cleanEmail
-    );
+    try {
+      const res = await authAPI.login({ email, password });
+      if (!res.success && res.message && !res.token) {
+        throw new Error(res.message);
+      }
 
-    if (!match) {
-      if (cleanEmail === 'manager@dealflow360.com') match = DEMO_ACCOUNTS.sales_manager;
-      if (cleanEmail === 'finance@dealflow360.com') match = DEMO_ACCOUNTS.finance_ops;
-      if (cleanEmail === 'customer@acmecorp.com') match = DEMO_ACCOUNTS.customer;
-    }
+      const rawUser = res.user || res.data?.user || res.data || {};
+      const token = res.token || res.data?.token;
 
-    if (match) {
-      setUser(match);
-      setAuthUser(match);
-      localStorage.setItem('dealflow360_user', JSON.stringify(match));
-      localStorage.setItem('dealflow360_auth_user', JSON.stringify(match));
-      localStorage.setItem('dealflow360_token', match.token);
-      localStorage.setItem('dealflow360_role', match.role);
+      const normalizedUser = {
+        id: rawUser.id || 'usr-' + Date.now(),
+        name: rawUser.fullName || rawUser.name || email.split('@')[0],
+        fullName: rawUser.fullName || rawUser.name || email.split('@')[0],
+        email: rawUser.email || email,
+        role: (rawUser.role || 'SALES_REP').toLowerCase(),
+        roleLabel: rawUser.role || 'Sales Representative',
+        avatar: rawUser.avatar || (rawUser.fullName || rawUser.name || email).substring(0, 2).toUpperCase(),
+        department: rawUser.department || 'Enterprise Operations',
+        token
+      };
+
+      setUser(normalizedUser);
+      if (token) {
+        localStorage.setItem('dealflow360_token', token);
+      }
+      localStorage.setItem('dealflow360_user', JSON.stringify(normalizedUser));
+      localStorage.setItem('dealflow360_role', normalizedUser.role);
+
       logAuditEvent({
-        user: match.name,
-        role: match.role,
+        user: normalizedUser.name,
+        role: normalizedUser.role,
         action: 'LOGIN',
         resource: 'AUTH_SESSION',
-        resourceId: match.id,
+        resourceId: normalizedUser.id,
         result: 'SUCCESS',
-        reason: 'Authenticated successfully with role credentials'
+        reason: 'Authenticated successfully with PostgreSQL credentials'
       });
-      setLoading(false);
-      return { success: true, user: match };
-    }
 
-    // Default fallback
-    const fallback = {
-      id: 'usr-custom-' + Date.now(),
-      name: email.split('@')[0],
-      email: email,
-      role: 'sales_rep',
-      roleLabel: 'Sales Representative',
-      avatar: email.substring(0, 2).toUpperCase(),
-      department: 'Sales',
-      token: 'jwt-custom-token'
-    };
-    setUser(fallback);
-    setAuthUser(fallback);
-    localStorage.setItem('dealflow360_auth_user', JSON.stringify(fallback));
-    setLoading(false);
-    return { success: true, user: fallback };
+      return { success: true, user: normalizedUser };
+    } catch (err) {
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const directLogin = async (roleKey) => {
+    const creds = ROLE_CREDENTIALS[roleKey];
+    if (!creds) {
+      throw new Error(`Unknown role key: ${roleKey}`);
+    }
+    return login(creds.email, creds.password);
   };
 
   const signup = async (userData) => {
-    const newUser = {
-      id: 'usr-' + Date.now(),
-      name: userData.name || 'New User',
-      email: userData.email,
-      role: userData.role || 'sales_rep',
-      roleLabel: userData.role === 'admin' ? 'Administrator' : 'Sales Representative',
-      avatar: (userData.name || 'U').substring(0, 2).toUpperCase(),
-      department: userData.department || 'Sales',
-      token: 'jwt-signup-token'
-    };
-    setUser(newUser);
-    setAuthUser(newUser);
-    localStorage.setItem('dealflow360_auth_user', JSON.stringify(newUser));
-    return { success: true, user: newUser };
+    setLoading(true);
+    try {
+      const res = await authAPI.signup(userData);
+      if (!res.success && res.message && !res.token) {
+        throw new Error(res.message);
+      }
+      const rawUser = res.user || res.data?.user || {};
+      const token = res.token || res.data?.token;
+
+      const normalizedUser = {
+        id: rawUser.id,
+        name: rawUser.fullName || userData.fullName || userData.name,
+        fullName: rawUser.fullName || userData.fullName || userData.name,
+        email: rawUser.email || userData.email,
+        role: (rawUser.role || userData.role || 'SALES_REP').toLowerCase(),
+        roleLabel: rawUser.role || userData.role || 'Sales Representative',
+        avatar: (userData.fullName || userData.name || userData.email).substring(0, 2).toUpperCase(),
+        department: userData.department || 'Enterprise Sales',
+        token
+      };
+
+      setUser(normalizedUser);
+      if (token) {
+        localStorage.setItem('dealflow360_token', token);
+      }
+      localStorage.setItem('dealflow360_user', JSON.stringify(normalizedUser));
+      localStorage.setItem('dealflow360_role', normalizedUser.role);
+
+      return { success: true, user: normalizedUser };
+    } catch (err) {
+      throw err;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const logout = () => {
@@ -266,38 +185,45 @@ export const AuthProvider = ({ children }) => {
         resource: 'AUTH_SESSION',
         resourceId: user.id,
         result: 'SUCCESS',
-        reason: 'User explicitly logged out'
+        reason: 'User ended active session'
       });
     }
     setUser(null);
-    setAuthUser(null);
-    localStorage.removeItem('dealflow360_auth_user');
+    localStorage.removeItem('dealflow360_user');
+    localStorage.removeItem('dealflow360_token');
+    localStorage.removeItem('dealflow360_role');
+  };
+
+  const switchRole = async (roleKey) => {
+    if (user?.role !== 'admin') {
+      console.warn(`[RBAC Security] Role switch rejected: only System Admin can switch RBAC contexts.`);
+      return null;
+    }
+    return directLogin(roleKey);
   };
 
   const checkPermission = (permission) => {
-    if (!user || !user.role) return false;
+    if (!user) return false;
     return hasPermission(user.role, permission);
   };
 
-  const permissions = user?.role ? ROLE_PERMISSIONS[user.role] || [] : [];
+  const permissions = user ? ROLE_PERMISSIONS[user.role] || [] : [];
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        authUser,
-        isAdmin,
-        canSwitchRole: isAdmin,
+        role: (user?.role || '').toLowerCase(),
         loading,
-        role: user?.role || null,
-        permissions,
-        checkPermission,
-        switchRole,
-        directLogin,
         login,
+        directLogin,
         signup,
         logout,
-        demoAccounts: DEMO_ACCOUNTS
+        switchRole,
+        checkPermission,
+        permissions,
+        isAuthenticated: !!user,
+        roleCredentials: ROLE_CREDENTIALS
       }}
     >
       {children}

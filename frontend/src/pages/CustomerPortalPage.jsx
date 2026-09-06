@@ -2,14 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
-  CheckCircle2,
   Send,
   Sparkles,
-  MessageSquare,
   AlertCircle,
   Clock,
   Check,
   ShoppingBag,
+  ShoppingCart,
   FileText,
   ListOrdered,
   Search,
@@ -19,7 +18,17 @@ import {
   CheckCircle,
   Info,
   ArrowRight,
-  LogOut
+  LogOut,
+  Trash2,
+  PackagePlus,
+  Building,
+  User,
+  Phone,
+  Mail,
+  MapPin,
+  Shield,
+  Save,
+  Truck
 } from 'lucide-react';
 import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
@@ -30,85 +39,59 @@ const CustomerPortalPage = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
-  const token = routeToken || user?.portalToken || user?.id || '';
+  const token = routeToken || user?.portalToken || user?.email || user?.id || 'demo-token-123';
 
-  // Active Tab: 'quote' | 'catalog' | 'requests'
-  const [activeTab, setActiveTab] = useState('quote');
-  const [requestsSubTab, setRequestsSubTab] = useState('all'); // 'all' | 'negotiations' | 'products' | 'orders'
+  // Active Tab: 'catalog' | 'cart' | 'requests' | 'profile'
+  const [activeTab, setActiveTab] = useState('catalog');
+  const [requestsSubTab, setRequestsSubTab] = useState('all'); // 'all' | 'products' | 'orders'
 
-  const [quoteData, setQuoteData] = useState(null);
   const [products, setProducts] = useState([]);
   const [productRequests, setProductRequests] = useState([]);
-  const [negotiationsList, setNegotiationsList] = useState([]);
   const [ordersList, setOrdersList] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Negotiation state
-  const [comment, setComment] = useState('');
-  const [counterDiscount, setCounterDiscount] = useState(0);
-  const [requestedDate, setRequestedDate] = useState('');
-  const [submittedStatus, setSubmittedStatus] = useState(null);
-  const [activeLineComment, setActiveLineComment] = useState({});
+  // Customer Profile State (Self-Editing)
+  const [profileData, setProfileData] = useState({
+    name: '',
+    companyName: '',
+    email: '',
+    phone: '',
+    billingAddress: '',
+    shippingAddress: '',
+    tier: 'BRONZE'
+  });
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  // Cart State (Interactive Cart & Request Builder)
+  const [cartItems, setCartItems] = useState([]);
+  const [cartNotes, setCartNotes] = useState('');
+  const [isSubmittingCart, setIsSubmittingCart] = useState(false);
+
+  // Manual Item Adder Form State
+  const [manualProduct, setManualProduct] = useState('');
+  const [manualQty, setManualQty] = useState(1);
+  const [manualTargetPrice, setManualTargetPrice] = useState('');
+  const [manualNotes, setManualNotes] = useState('');
 
   // Catalog filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [requestQuantities, setRequestQuantities] = useState({});
-  const [requestMessages, setRequestMessages] = useState({});
+  const [catalogQuantities, setCatalogQuantities] = useState({});
+  const [catalogMessages, setCatalogMessages] = useState({});
   const [submittingRequestId, setSubmittingRequestId] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
 
-  const categories = ['All', 'Hardware', 'Services', 'Software & Cloud', 'Warranty & SLA'];
-
-  const normalizeQuoteData = (raw) => {
-    if (!raw) return null;
-    const rawItems = Array.isArray(raw.lineItems) ? raw.lineItems : Array.isArray(raw.items) ? raw.items : [];
-    const lineItems = rawItems.map((it, idx) => ({
-      id: String(it.id || `item-${idx + 1}`),
-      name: it.name || it.product?.name || `Product #${it.productId || idx + 1}`,
-      qty: it.qty || it.quantity || 1,
-      price: it.price || it.unitPrice || 0,
-      discount: it.discount || 0,
-      total: it.total || it.totalPrice || ((it.qty || it.quantity || 1) * (it.price || it.unitPrice || 0))
-    }));
-
-    const negotiationHistory = Array.isArray(raw.negotiationHistory)
-      ? raw.negotiationHistory.map((n) => ({
-          actor: n.actor || n.actorRole || 'Customer',
-          timestamp: n.timestamp || n.createdAt || new Date().toISOString(),
-          message: n.message || n.comment || 'Negotiation update'
-        }))
-      : [];
-
-    return {
-      ...raw,
-      quotationId: raw.quotationId || raw.quoteNumber || raw.id || 'QUOTATION-PREVIEW',
-      customerName: raw.customerName || raw.customer?.companyName || raw.customer?.name || 'Valued Customer',
-      contactPerson: raw.contactPerson || raw.customer?.contactPerson || raw.customer?.name || 'Representative',
-      quoteValidity: raw.quoteValidity || (raw.expiresAt ? new Date(raw.expiresAt).toLocaleDateString('en-IN') : '30 Days'),
-      currency: raw.currency || 'INR',
-      currentDiscount: raw.currentDiscount ?? (lineItems[0]?.discount || 0),
-      lineItems,
-      negotiationHistory
-    };
-  };
+  const categories = ['All', 'Hardware', 'Services', 'Software & Cloud', 'Warranty & SLA', 'Accessories'];
 
   const refreshAllData = async () => {
     try {
-      const [qRes, pRes, reqRes] = await Promise.all([
-        customerPortalAPI.getQuoteByToken(token),
+      const [pRes, reqRes, profRes] = await Promise.all([
         customerPortalAPI.getProducts(token, { search: searchQuery, category: selectedCategory }),
-        customerPortalAPI.getProductRequests(token)
+        customerPortalAPI.getProductRequests(token),
+        customerPortalAPI.getProfile(token).catch(() => null)
       ]);
 
-      if (qRes && (qRes.data || qRes.quotationId || qRes.id)) {
-        const normalized = normalizeQuoteData(qRes.data || qRes);
-        setQuoteData(normalized);
-        if (normalized?.currentDiscount !== undefined) {
-          setCounterDiscount(normalized.currentDiscount);
-        }
-      }
       if (pRes) {
         const productList = Array.isArray(pRes.data) ? pRes.data : Array.isArray(pRes) ? pRes : [];
         setProducts(productList);
@@ -116,12 +99,12 @@ const CustomerPortalPage = () => {
         productList.forEach((p) => {
           initialQty[p.id] = initialQty[p.id] || 1;
         });
-        setRequestQuantities((prev) => ({ ...initialQty, ...prev }));
+        setCatalogQuantities((prev) => ({ ...initialQty, ...prev }));
       }
+
       if (reqRes) {
         if (reqRes.data && typeof reqRes.data === 'object' && !Array.isArray(reqRes.data)) {
           setProductRequests(reqRes.data.productRequests || []);
-          setNegotiationsList(reqRes.data.negotiations || []);
           setOrdersList(reqRes.data.orders || []);
         } else if (Array.isArray(reqRes.data)) {
           setProductRequests(reqRes.data);
@@ -129,8 +112,20 @@ const CustomerPortalPage = () => {
           setProductRequests(reqRes);
         }
       }
+
+      if (profRes?.data) {
+        setProfileData({
+          name: profRes.data.name || user?.fullName || '',
+          companyName: profRes.data.companyName || user?.companyName || 'Enterprise Partner',
+          email: profRes.data.email || user?.email || '',
+          phone: profRes.data.phone || user?.phone || '',
+          billingAddress: profRes.data.billingAddress || '',
+          shippingAddress: profRes.data.shippingAddress || '',
+          tier: profRes.data.tier || 'BRONZE'
+        });
+      }
     } catch (err) {
-      setError(err.message || 'Unauthorized: Invalid or expired quotation access token.');
+      setError(err.message || 'Error loading customer portal session.');
     } finally {
       setLoading(false);
     }
@@ -152,31 +147,188 @@ const CustomerPortalPage = () => {
         console.warn('Catalog filter error', err);
       }
     };
-    if (!loading && quoteData) {
+    if (!loading) {
       fetchCatalog();
     }
   }, [searchQuery, selectedCategory]);
 
-  const handleQtyChange = (productId, delta) => {
-    setRequestQuantities((prev) => {
+  // Catalog Quantity Adjuster
+  const handleCatalogQtyChange = (productId, delta) => {
+    setCatalogQuantities((prev) => {
       const current = prev[productId] !== undefined ? prev[productId] : 1;
-      const next = Math.max(0, Math.min(50, current + delta));
+      const next = Math.max(1, Math.min(50, current + delta));
       return { ...prev, [productId]: next };
     });
   };
 
-  const handleDirectQtyChange = (productId, value) => {
+  const handleDirectCatalogQtyChange = (productId, value) => {
     if (value === '') {
-      setRequestQuantities((prev) => ({ ...prev, [productId]: 0 }));
+      setCatalogQuantities((prev) => ({ ...prev, [productId]: 1 }));
       return;
     }
     const parsed = parseInt(value, 10);
-    const next = isNaN(parsed) ? 0 : Math.max(0, Math.min(50, parsed));
-    setRequestQuantities((prev) => ({ ...prev, [productId]: next }));
+    const next = isNaN(parsed) ? 1 : Math.max(1, Math.min(50, parsed));
+    setCatalogQuantities((prev) => ({ ...prev, [productId]: next }));
   };
 
-  const handleRequestProduct = async (product) => {
-    const qty = requestQuantities[product.id] !== undefined ? requestQuantities[product.id] : 1;
+  // -------------------------------------------------------------
+  // CART OPERATIONS
+  // -------------------------------------------------------------
+  const addToCart = (product, quantity = 1, customTargetPrice = null, notes = '') => {
+    const targetPrice = customTargetPrice !== null && customTargetPrice !== '' && Number(customTargetPrice) >= 0
+      ? Number(customTargetPrice)
+      : Number(product.basePrice ?? product.price ?? product.unitPrice ?? 0);
+
+    setCartItems((prev) => {
+      const existingIdx = prev.findIndex((item) => item.productId === product.id);
+      if (existingIdx >= 0) {
+        const updated = [...prev];
+        updated[existingIdx].quantity += quantity;
+        if (notes) updated[existingIdx].notes = notes;
+        if (customTargetPrice !== null) updated[existingIdx].targetPrice = targetPrice;
+        return updated;
+      } else {
+        return [
+          ...prev,
+          {
+            productId: product.id,
+            sku: product.sku || `SKU-${product.id}`,
+            name: product.name,
+            category: product.category || 'General',
+            unitPrice: Number(product.basePrice ?? product.price ?? 0),
+            targetPrice,
+            quantity,
+            notes: notes || ''
+          }
+        ];
+      }
+    });
+
+    setToastMessage({
+      type: 'success',
+      text: `Added ${quantity}x ${product.name} to Cart!`
+    });
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  const updateCartItemQty = (productId, delta) => {
+    setCartItems((prev) =>
+      prev
+        .map((item) => {
+          if (item.productId === productId) {
+            const nextQty = item.quantity + delta;
+            return nextQty > 0 ? { ...item, quantity: nextQty } : null;
+          }
+          return item;
+        })
+        .filter(Boolean)
+    );
+  };
+
+  const updateCartItemNotes = (productId, notes) => {
+    setCartItems((prev) =>
+      prev.map((item) => (item.productId === productId ? { ...item, notes } : item))
+    );
+  };
+
+  const updateCartItemTargetPrice = (productId, targetPrice) => {
+    setCartItems((prev) =>
+      prev.map((item) =>
+        item.productId === productId ? { ...item, targetPrice: Number(targetPrice) || 0 } : item
+      )
+    );
+  };
+
+  const removeCartItem = (productId) => {
+    setCartItems((prev) => prev.filter((item) => item.productId !== productId));
+  };
+
+  const clearCart = () => {
+    setCartItems([]);
+    setCartNotes('');
+  };
+
+  // Add Item Manually Handler
+  const handleAddManualItem = (e) => {
+    e.preventDefault();
+    if (!manualProduct) {
+      setError('Please select a product from the catalog to add.');
+      return;
+    }
+
+    const selectedProd = products.find((p) => p.id === manualProduct || p.sku === manualProduct);
+    if (!selectedProd) {
+      setError('Selected product not found in catalog.');
+      return;
+    }
+
+    const qty = Math.max(1, Number(manualQty) || 1);
+    addToCart(selectedProd, qty, manualTargetPrice || null, manualNotes);
+
+    // Reset manual form
+    setManualProduct('');
+    setManualQty(1);
+    setManualTargetPrice('');
+    setManualNotes('');
+    setError(null);
+  };
+
+  // Cart Calculations
+  const cartSubtotal = cartItems.reduce(
+    (sum, item) => sum + item.quantity * (item.targetPrice || item.unitPrice || 0),
+    0
+  );
+  const cartTax = Math.round(cartSubtotal * 0.18);
+  const cartTotalWithTax = cartSubtotal + cartTax;
+  const totalCartUnits = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+
+  // Submit Cart Order Request
+  const handleConfirmCartRequest = async () => {
+    if (cartItems.length === 0) {
+      setError('Your cart is empty. Please add items before submitting an order request.');
+      return;
+    }
+
+    setIsSubmittingCart(true);
+    setError(null);
+
+    try {
+      const requestPayload = {
+        notes: cartNotes || `Order request with ${totalCartUnits} total items from Customer Cart.`,
+        items: cartItems.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          targetPrice: item.targetPrice,
+          notes: item.notes || null
+        }))
+      };
+
+      const res = await customerPortalAPI.createProductRequest(token, requestPayload);
+
+      setToastMessage({
+        type: 'success',
+        text: `Order request #${res.data?.requestNumber || 'submitted'} confirmed! Sent directly to your Sales Representative.`
+      });
+
+      // Clear Cart
+      clearCart();
+
+      // Refresh Data & Switch to Requests Tab
+      await refreshAllData();
+      setActiveTab('requests');
+      setRequestsSubTab('products');
+
+      setTimeout(() => setToastMessage(null), 6000);
+    } catch (err) {
+      setError(err.message || 'Failed to submit order request from cart.');
+    } finally {
+      setIsSubmittingCart(false);
+    }
+  };
+
+  // Single Item Direct Request from Catalog
+  const handleRequestProductDirect = async (product) => {
+    const qty = catalogQuantities[product.id] !== undefined ? catalogQuantities[product.id] : 1;
     if (qty <= 0) {
       setError('Please select a quantity greater than 0 before submitting a request.');
       return;
@@ -184,7 +336,7 @@ const CustomerPortalPage = () => {
     setSubmittingRequestId(product.id);
     setError(null);
     try {
-      const msg = requestMessages[product.id] || `Please include ${qty}x ${product.name} in our active quotation proposal.`;
+      const msg = catalogMessages[product.id] || `Please include ${qty}x ${product.name} in our active quotation proposal.`;
 
       await customerPortalAPI.createProductRequest(token, {
         productId: product.id,
@@ -197,12 +349,8 @@ const CustomerPortalPage = () => {
         text: `Product request for ${qty}x ${product.name} sent to your Sales Representative and added to My Requests!`
       });
 
-      // Clear custom message
-      setRequestMessages((prev) => ({ ...prev, [product.id]: '' }));
-
-      // Refresh requests list
+      setCatalogMessages((prev) => ({ ...prev, [product.id]: '' }));
       await refreshAllData();
-
       setTimeout(() => setToastMessage(null), 6000);
     } catch (err) {
       setError(err.message || 'Failed to submit product request');
@@ -225,58 +373,25 @@ const CustomerPortalPage = () => {
     }
   };
 
-  const handleSubmitCounter = async () => {
+  // Profile Save Handler (Customer edits their own fields)
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    setIsSavingProfile(true);
+    setError(null);
     try {
-      const res = await customerPortalAPI.submitCounterProposal(token, {
-        counterDiscount,
-        comment,
-        requestedDate
-      });
-      setSubmittedStatus(res);
+      const res = await customerPortalAPI.updateProfile(token, profileData);
       setToastMessage({
         type: 'success',
-        text: 'Counter-offer submitted and recorded in your My Requests history!'
+        text: 'Your company details and billing profile have been updated in PostgreSQL!'
       });
-      const updated = await customerPortalAPI.getQuoteByToken(token);
-      if (updated && (updated.data || updated.id)) {
-        setQuoteData(normalizeQuoteData(updated.data || updated));
+      if (res.data) {
+        setProfileData((prev) => ({ ...prev, ...res.data }));
       }
-      await refreshAllData();
-      setTimeout(() => setToastMessage(null), 6000);
-    } catch {
-      setError('Failed to submit counter proposal');
-    }
-  };
-
-  const handleConfirmQuotation = async () => {
-    try {
-      const res = await customerPortalAPI.acceptQuote(token);
-      setSubmittedStatus(res);
-      setToastMessage({
-        type: 'success',
-        text: 'Quotation confirmed! Order created and warehouse fulfillment initiated.'
-      });
-      const updated = await customerPortalAPI.getQuoteByToken(token);
-      if (updated && (updated.data || updated.id)) {
-        setQuoteData(normalizeQuoteData(updated.data || updated));
-      }
-      await refreshAllData();
-      setTimeout(() => setToastMessage(null), 6000);
-    } catch {
-      setError('Failed to confirm quotation');
-    }
-  };
-
-  const handleAddLineComment = async (lineId) => {
-    const lineText = activeLineComment[lineId];
-    if (!lineText) return;
-    try {
-      await customerPortalAPI.addLineComment(token, lineId, lineText);
-      setActiveLineComment({ ...activeLineComment, [lineId]: '' });
-      const updated = await customerPortalAPI.getQuoteByToken(token);
-      setQuoteData(updated.data);
-    } catch {
-      setError('Failed to add comment to line item');
+      setTimeout(() => setToastMessage(null), 5000);
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Failed to update company profile');
+    } finally {
+      setIsSavingProfile(false);
     }
   };
 
@@ -296,30 +411,10 @@ const CustomerPortalPage = () => {
     );
   }
 
-  if (error && !quoteData) {
-    return (
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-        <div className="p-8 bg-white rounded-2xl border border-red-200 shadow-xl text-center max-w-md space-y-4">
-          <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto">
-            <AlertCircle className="w-6 h-6" />
-          </div>
-          <h2 className="text-lg font-bold text-slate-900">403 - Customer Access Forbidden</h2>
-          <p className="text-xs text-slate-600">{error || 'Invalid or expired customer token. You are not authorized to view this quotation.'}</p>
-          <p className="text-[11px] text-slate-400">Token provided: <span className="font-mono">{token}</span></p>
-          <div className="pt-2">
-            <Link to="/login" className="text-xs text-slate-500 hover:text-slate-800 underline">
-              Return to Sign In
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col font-sans">
       {/* Header (Isolated Customer Portal Layout) */}
-      <header className="bg-white border-b border-slate-200 px-6 md:px-12 py-4 flex flex-col sm:flex-row justify-between items-center gap-4 shadow-sm">
+      <header className="bg-white border-b border-slate-200 px-6 md:px-12 py-4 flex flex-col sm:flex-row justify-between items-center gap-4 shadow-sm sticky top-0 z-30">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-[#a459a8] flex items-center justify-center text-white font-bold text-lg shadow-sm shadow-[#a459a8]/30">
             D
@@ -330,30 +425,18 @@ const CustomerPortalPage = () => {
                 DealFlow<span className="text-[#a459a8]">360</span> Customer Portal
               </span>
               <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-purple-100 text-purple-700">
-                Verified Session
+                Verified Account
               </span>
             </div>
             <p className="text-[11px] text-slate-500">
-              Quotation: <span className="font-mono font-bold text-slate-800">{quoteData.quotationId}</span> &bull; {quoteData.customerName} ({quoteData.contactPerson})
+              {profileData.companyName || 'Enterprise Buyer'} &bull; Contact: <span className="font-semibold text-slate-800">{profileData.name || user?.fullName || 'Procurement Officer'}</span>
             </p>
           </div>
         </div>
 
-        {/* Portal Section Navigation Tabs & Logout */}
+        {/* Portal Section Navigation Tabs */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
-            <button
-              onClick={() => setActiveTab('quote')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                activeTab === 'quote'
-                  ? 'bg-white text-[#a459a8] shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <FileText className="w-3.5 h-3.5" />
-              <span>Quotation</span>
-            </button>
-
             <button
               onClick={() => setActiveTab('catalog')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
@@ -367,6 +450,27 @@ const CustomerPortalPage = () => {
             </button>
 
             <button
+              onClick={() => setActiveTab('cart')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all relative ${
+                activeTab === 'cart'
+                  ? 'bg-[#a459a8] text-white shadow-sm'
+                  : cartItems.length > 0
+                  ? 'bg-purple-50 text-[#a459a8] border border-purple-200'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <ShoppingCart className="w-3.5 h-3.5" />
+              <span>Order Cart</span>
+              {cartItems.length > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-extrabold ${
+                  activeTab === 'cart' ? 'bg-white text-[#a459a8]' : 'bg-[#a459a8] text-white'
+                }`}>
+                  {cartItems.length}
+                </span>
+              )}
+            </button>
+
+            <button
               onClick={() => setActiveTab('requests')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all relative ${
                 activeTab === 'requests'
@@ -375,12 +479,24 @@ const CustomerPortalPage = () => {
               }`}
             >
               <ListOrdered className="w-3.5 h-3.5" />
-              <span>My Requests</span>
-              {(productRequests.length + negotiationsList.length + ordersList.length) > 0 && (
+              <span>My Requests & Orders</span>
+              {(productRequests.length + ordersList.length) > 0 && (
                 <span className="ml-1 px-1.5 py-0.2 bg-[#a459a8] text-white rounded-full text-[9px] font-extrabold">
-                  {productRequests.length + negotiationsList.length + ordersList.length}
+                  {productRequests.length + ordersList.length}
                 </span>
               )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab('profile')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                activeTab === 'profile'
+                  ? 'bg-white text-[#a459a8] shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Building className="w-3.5 h-3.5" />
+              <span>My Company Profile</span>
             </button>
           </div>
 
@@ -422,17 +538,20 @@ const CustomerPortalPage = () => {
                 <div>
                   <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
                     <ShoppingBag className="w-5 h-5 text-[#a459a8]" />
-                    Customer Products & Services Catalog
+                    Enterprise Products & Services Catalog
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Browse eligible hardware, enterprise cloud services, and SLA plans. Request items to be added directly to your proposal.
+                    Browse eligible hardware, enterprise cloud platforms, and 24/7 SLA plans. Add items to your Order Cart to build a customized quote request.
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="p-2 bg-purple-50 rounded-xl border border-purple-200/80 text-[11px] text-purple-900 font-semibold flex items-center gap-1.5">
-                    <Info className="w-4 h-4 text-[#a459a8]" />
-                    <span>Requests are sent to your Sales Rep for quote inclusion</span>
-                  </div>
+                  <button
+                    onClick={() => setActiveTab('cart')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 text-[#a459a8] border border-purple-200 text-xs font-bold hover:bg-purple-100 transition-colors"
+                  >
+                    <ShoppingCart className="w-4 h-4" />
+                    <span>View Cart ({cartItems.length} items)</span>
+                  </button>
                 </div>
               </div>
 
@@ -470,7 +589,7 @@ const CustomerPortalPage = () => {
             {/* Product Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {products.map((p) => {
-                const qty = requestQuantities[p.id] !== undefined ? requestQuantities[p.id] : 1;
+                const qty = catalogQuantities[p.id] !== undefined ? catalogQuantities[p.id] : 1;
                 const isSubmitting = submittingRequestId === p.id;
                 const productPrice = Number(p.basePrice ?? p.price ?? p.unitPrice ?? 0);
                 return (
@@ -483,6 +602,7 @@ const CustomerPortalPage = () => {
                         <div>
                           <Badge variant="primary" className="text-[10px] mb-1.5">{p.category}</Badge>
                           <h3 className="text-sm font-bold text-slate-900 leading-snug">{p.name}</h3>
+                          <span className="text-[10px] font-mono text-slate-400">{p.sku}</span>
                         </div>
                         <div className="text-right flex-shrink-0">
                           <p className="text-base font-extrabold text-[#a459a8] font-mono">₹{productPrice.toLocaleString('en-IN')}</p>
@@ -491,28 +611,17 @@ const CustomerPortalPage = () => {
                       </div>
 
                       <p className="text-xs text-slate-600 mt-2 leading-relaxed">{p.description}</p>
-
-                      {/* Specs */}
-                      {Array.isArray(p.specs) && p.specs.length > 0 && (
-                        <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap gap-1.5">
-                          {p.specs.map((spec, idx) => (
-                            <span key={idx} className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md font-medium">
-                              &bull; {spec}
-                            </span>
-                          ))}
-                        </div>
-                      )}
                     </div>
 
-                    {/* Quantity & Request Section */}
+                    {/* Quantity & Action Buttons */}
                     <div className="pt-3 border-t border-slate-100 space-y-3 bg-slate-50/70 p-3.5 rounded-xl border border-slate-100">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-slate-700">Select Quantity:</span>
                         <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg p-1 shadow-sm">
                           <button
                             type="button"
-                            onClick={() => handleQtyChange(p.id, -1)}
-                            disabled={qty <= 0}
+                            onClick={() => handleCatalogQtyChange(p.id, -1)}
+                            disabled={qty <= 1}
                             className="w-7 h-7 rounded bg-slate-100 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed text-slate-700 flex items-center justify-center font-bold text-xs transition-colors"
                             aria-label="Decrease quantity"
                           >
@@ -520,15 +629,15 @@ const CustomerPortalPage = () => {
                           </button>
                           <input
                             type="number"
-                            min="0"
+                            min="1"
                             max="50"
                             value={qty}
-                            onChange={(e) => handleDirectQtyChange(p.id, e.target.value)}
+                            onChange={(e) => handleDirectCatalogQtyChange(p.id, e.target.value)}
                             className="w-10 text-center text-xs font-bold font-mono text-slate-800 bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-[#a459a8] rounded"
                           />
                           <button
                             type="button"
-                            onClick={() => handleQtyChange(p.id, 1)}
+                            onClick={() => handleCatalogQtyChange(p.id, 1)}
                             disabled={qty >= 50}
                             className="w-7 h-7 rounded bg-slate-100 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed text-slate-700 flex items-center justify-center font-bold text-xs transition-colors"
                             aria-label="Increase quantity"
@@ -542,31 +651,36 @@ const CustomerPortalPage = () => {
                       <div>
                         <input
                           type="text"
-                          placeholder="Add optional request notes / specifications for sales..."
-                          value={requestMessages[p.id] || ''}
-                          onChange={(e) => setRequestMessages({ ...requestMessages, [p.id]: e.target.value })}
+                          placeholder="Optional specifications / requirements for this item..."
+                          value={catalogMessages[p.id] || ''}
+                          onChange={(e) => setCatalogMessages({ ...catalogMessages, [p.id]: e.target.value })}
                           className="w-full px-2.5 py-1.5 text-[11px] border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#a459a8]"
                         />
                       </div>
 
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        icon={Send}
-                        disabled={isSubmitting || qty <= 0}
-                        onClick={() => handleRequestProduct(p)}
-                        className={`w-full py-2 text-xs font-bold transition-all ${
-                          qty <= 0
-                            ? '!bg-slate-200 !text-slate-400 !border-slate-200 cursor-not-allowed shadow-none'
-                            : 'bg-[#a459a8] hover:bg-[#924b96] text-white'
-                        }`}
-                      >
-                        {isSubmitting
-                          ? 'Submitting Request...'
-                          : qty <= 0
-                          ? 'Select Quantity (0 selected)'
-                          : `Request ${qty}x Product`}
-                      </Button>
+                      {/* Action Buttons: Add to Cart & Direct Request */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          icon={ShoppingCart}
+                          onClick={() => addToCart(p, qty, null, catalogMessages[p.id] || '')}
+                          className="w-full py-2 text-xs font-bold border-[#a459a8] text-[#a459a8] hover:bg-purple-50"
+                        >
+                          Add to Cart
+                        </Button>
+
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          icon={Send}
+                          disabled={isSubmitting || qty <= 0}
+                          onClick={() => handleRequestProductDirect(p)}
+                          className="w-full py-2 text-xs font-bold bg-[#a459a8] hover:bg-[#924b96] text-white"
+                        >
+                          {isSubmitting ? 'Requesting...' : `Request Direct`}
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -576,7 +690,346 @@ const CustomerPortalPage = () => {
         )}
 
         {/* ===================================================
-            TAB 2: MY REQUESTS & NEGOTIATIONS DASHBOARD
+            TAB 2: ORDER CART & MANUAL ITEM ADDER
+        =================================================== */}
+        {activeTab === 'cart' && (
+          <div className="space-y-6">
+            {/* Header Banner */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between md:items-center gap-4">
+              <div>
+                <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                  <ShoppingCart className="w-5 h-5 text-[#a459a8]" />
+                  Interactive Order Request Cart
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Add items manually or from the catalog, specify custom quantities and target prices, then submit your order request for sales confirmation.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  icon={ShoppingBag}
+                  onClick={() => setActiveTab('catalog')}
+                >
+                  Browse Catalog
+                </Button>
+                {cartItems.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    icon={Trash2}
+                    onClick={clearCart}
+                    className="text-red-600 border-red-200 hover:bg-red-50"
+                  >
+                    Clear Cart
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Manual Item Adder Card */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                <PackagePlus className="w-4 h-4 text-[#a459a8]" />
+                <h3 className="text-sm font-bold text-slate-900">Add Item Manually to Cart</h3>
+                <span className="text-[10px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded font-semibold ml-auto">
+                  Custom Specification
+                </span>
+              </div>
+
+              <form onSubmit={handleAddManualItem} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                {/* Product Selector */}
+                <div className="md:col-span-4">
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Select Product *</label>
+                  <select
+                    value={manualProduct}
+                    onChange={(e) => {
+                      setManualProduct(e.target.value);
+                      const p = products.find((prod) => prod.id === e.target.value);
+                      if (p) setManualTargetPrice(String(p.basePrice || p.price || ''));
+                    }}
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:border-[#a459a8]"
+                    required
+                  >
+                    <option value="">-- Choose from Master Catalog --</option>
+                    {products.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} (₹{Number(p.basePrice || p.price || 0).toLocaleString('en-IN')}) - {p.category}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Quantity */}
+                <div className="md:col-span-2">
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Quantity *</label>
+                  <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl p-1">
+                    <button
+                      type="button"
+                      onClick={() => setManualQty((prev) => Math.max(1, prev - 1))}
+                      className="w-6 h-6 rounded bg-white text-slate-700 hover:bg-slate-200 flex items-center justify-center font-bold text-xs"
+                    >
+                      <Minus className="w-3 h-3" />
+                    </button>
+                    <input
+                      type="number"
+                      min="1"
+                      max="1000"
+                      value={manualQty}
+                      onChange={(e) => setManualQty(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                      className="w-full text-center text-xs font-bold font-mono bg-transparent border-0 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setManualQty((prev) => prev + 1)}
+                      className="w-6 h-6 rounded bg-white text-slate-700 hover:bg-slate-200 flex items-center justify-center font-bold text-xs"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Target Price */}
+                <div className="md:col-span-3">
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Target Price (₹)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="Standard base price"
+                    value={manualTargetPrice}
+                    onChange={(e) => setManualTargetPrice(e.target.value)}
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:border-[#a459a8] font-mono"
+                  />
+                </div>
+
+                {/* Submit Add */}
+                <div className="md:col-span-3">
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    icon={Plus}
+                    className="w-full py-2 text-xs font-bold bg-[#a459a8] hover:bg-[#924b96]"
+                  >
+                    Add to Cart
+                  </Button>
+                </div>
+
+                {/* Line Item Notes */}
+                <div className="md:col-span-12 pt-1">
+                  <input
+                    type="text"
+                    placeholder="Optional item specifications (e.g. 32GB RAM upgrade, onsite SLA, delivery window)..."
+                    value={manualNotes}
+                    onChange={(e) => setManualNotes(e.target.value)}
+                    className="w-full px-3 py-1.5 text-[11px] border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:border-[#a459a8]"
+                  />
+                </div>
+              </form>
+            </div>
+
+            {/* Cart Table & Checkout Breakdown */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Cart Line Items (2 Cols) */}
+              <div className="lg:col-span-2 space-y-4">
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <h3 className="text-sm font-bold text-slate-900">
+                      Cart Line Items ({cartItems.length})
+                    </h3>
+                    <span className="text-xs text-slate-500">
+                      Total Units: <span className="font-bold text-slate-800">{totalCartUnits}</span>
+                    </span>
+                  </div>
+
+                  {cartItems.length === 0 ? (
+                    <div className="py-12 text-center space-y-3 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                      <ShoppingCart className="w-10 h-10 text-slate-300 mx-auto" />
+                      <p className="text-xs font-bold text-slate-600">Your Cart is Currently Empty</p>
+                      <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
+                        Add items using the manual form above or browse our catalog to assemble your customized enterprise quote request.
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        icon={ShoppingBag}
+                        onClick={() => setActiveTab('catalog')}
+                        className="mt-2 bg-[#a459a8] hover:bg-[#924b96]"
+                      >
+                        Explore Products Catalog
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {cartItems.map((item, idx) => {
+                        const lineTotal = item.quantity * (item.targetPrice || item.unitPrice || 0);
+                        return (
+                          <div
+                            key={item.productId || idx}
+                            className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-white hover:border-[#a459a8]/40 transition-all space-y-3"
+                          >
+                            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="primary" className="text-[9px]">{item.category}</Badge>
+                                  <span className="text-xs font-mono font-bold text-slate-400">{item.sku}</span>
+                                </div>
+                                <h4 className="text-sm font-bold text-slate-900 mt-1">{item.name}</h4>
+                              </div>
+
+                              <div className="text-right flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2">
+                                <span className="text-base font-extrabold text-[#a459a8] font-mono">
+                                  ₹{lineTotal.toLocaleString('en-IN')}
+                                </span>
+                                <span className="text-[10px] text-slate-400">
+                                  (₹{Number(item.targetPrice || item.unitPrice).toLocaleString('en-IN')} / unit)
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Quantity & Target Price & Remove */}
+                            <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+                              {/* Quantity Stepper */}
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] font-semibold text-slate-600">Qty:</span>
+                                <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => updateCartItemQty(item.productId, -1)}
+                                    className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs"
+                                  >
+                                    <Minus className="w-3 h-3" />
+                                  </button>
+                                  <span className="w-8 text-center font-mono font-bold text-xs text-slate-800">
+                                    {item.quantity}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => updateCartItemQty(item.productId, 1)}
+                                    className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs"
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Custom Target Price Input */}
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[11px] font-semibold text-slate-600">Target ₹:</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={item.targetPrice}
+                                  onChange={(e) => updateCartItemTargetPrice(item.productId, e.target.value)}
+                                  className="w-24 px-2 py-1 text-xs border border-slate-200 rounded bg-white font-mono focus:outline-none focus:border-[#a459a8]"
+                                />
+                              </div>
+
+                              {/* Remove Item */}
+                              <button
+                                type="button"
+                                onClick={() => removeCartItem(item.productId)}
+                                className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors inline-flex items-center gap-1 text-[11px] font-semibold ml-auto"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" /> Remove
+                              </button>
+                            </div>
+
+                            {/* Line Note */}
+                            <div>
+                              <input
+                                type="text"
+                                placeholder="Add specific delivery or configuration notes for this item..."
+                                value={item.notes || ''}
+                                onChange={(e) => updateCartItemNotes(item.productId, e.target.value)}
+                                className="w-full px-2.5 py-1 text-[11px] border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#a459a8]"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Cart Summary & Confirm Button (1 Col) */}
+              <div className="space-y-6">
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                  <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-[#a459a8]" />
+                    Order Request Summary
+                  </h3>
+
+                  <div className="space-y-2.5 text-xs">
+                    <div className="flex justify-between text-slate-600">
+                      <span>Items Count:</span>
+                      <span className="font-mono font-bold text-slate-800">{cartItems.length} items ({totalCartUnits} units)</span>
+                    </div>
+                    <div className="flex justify-between text-slate-600">
+                      <span>Estimated Subtotal:</span>
+                      <span className="font-mono font-bold text-slate-900">₹{cartSubtotal.toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-600">
+                      <span>Estimated GST (18%):</span>
+                      <span className="font-mono font-bold text-slate-700">₹{cartTax.toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="pt-3 border-t border-slate-100 flex justify-between items-center">
+                      <span className="font-bold text-slate-900 uppercase">Estimated Total:</span>
+                      <span className="text-lg font-extrabold text-[#a459a8] font-mono">
+                        ₹{cartTotalWithTax.toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* General Order Notes */}
+                  <div className="pt-2">
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      General Request Notes / Delivery Instructions:
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={cartNotes}
+                      onChange={(e) => setCartNotes(e.target.value)}
+                      placeholder="Specify company PO reference, required delivery timelines, or payment term preferences..."
+                      className="w-full p-2.5 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:border-[#a459a8]"
+                    />
+                  </div>
+
+                  {/* Primary Confirm & Submit Button */}
+                  <div className="pt-2">
+                    <Button
+                      variant="primary"
+                      icon={Send}
+                      disabled={cartItems.length === 0 || isSubmittingCart}
+                      onClick={handleConfirmCartRequest}
+                      className="w-full py-2.5 text-xs font-bold bg-[#a459a8] hover:bg-[#924b96] shadow-md shadow-[#a459a8]/20"
+                    >
+                      {isSubmittingCart ? 'Submitting Order Request...' : 'Confirm & Submit Order Request'}
+                    </Button>
+                    <p className="text-[10px] text-slate-400 text-center mt-2">
+                      Submitting creates a live Order Request in PostgreSQL routed to your assigned Sales Rep.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Info Card */}
+                <div className="p-4 bg-purple-50 rounded-2xl border border-purple-200 text-xs space-y-2">
+                  <div className="flex items-center gap-2 text-purple-900 font-bold">
+                    <Sparkles className="w-4 h-4 text-[#a459a8]" />
+                    <span>How Order Requests Work</span>
+                  </div>
+                  <p className="text-[11px] text-purple-800 leading-relaxed">
+                    Once submitted, your Sales Representative receives the itemized list, reviews margin limits, applies enterprise volume discounts, and generates a formal Quotation Proposal for your review.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ===================================================
+            TAB 3: MY REQUESTS & CONFIRMED ORDERS
         =================================================== */}
         {activeTab === 'requests' && (
           <div className="space-y-6">
@@ -588,20 +1041,31 @@ const CustomerPortalPage = () => {
                     My Activity & Requests History
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Track the live review status of your quotation counter-offers, product requests, and confirmed orders.
+                    Track the live review status of your order requests and confirmed orders.
                   </p>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  icon={ShoppingBag}
-                  onClick={() => setActiveTab('catalog')}
-                >
-                  Browse Catalog
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    icon={ShoppingCart}
+                    onClick={() => setActiveTab('cart')}
+                    className="bg-[#a459a8] hover:bg-[#924b96]"
+                  >
+                    Open Cart ({cartItems.length})
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    icon={ShoppingBag}
+                    onClick={() => setActiveTab('catalog')}
+                  >
+                    Browse Catalog
+                  </Button>
+                </div>
               </div>
 
-              {/* Sub-Tabs: All | Negotiations | Product Requests | Orders */}
+              {/* Sub-Tabs: All | Product Requests | Orders */}
               <div className="flex items-center gap-2 overflow-x-auto pb-1">
                 <button
                   onClick={() => setRequestsSubTab('all')}
@@ -611,21 +1075,7 @@ const CustomerPortalPage = () => {
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
-                  All Activity ({negotiationsList.length + productRequests.length + ordersList.length})
-                </button>
-
-                <button
-                  onClick={() => setRequestsSubTab('negotiations')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
-                    requestsSubTab === 'negotiations'
-                      ? 'bg-[#a459a8] text-white shadow-sm'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  <span>Counter-Offers & Negotiations</span>
-                  <span className="px-1.5 py-0.2 bg-purple-200 text-purple-900 rounded-full text-[10px] font-extrabold">
-                    {negotiationsList.length}
-                  </span>
+                  All Activity ({productRequests.length + ordersList.length})
                 </button>
 
                 <button
@@ -636,7 +1086,7 @@ const CustomerPortalPage = () => {
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
-                  <span>Product Requests</span>
+                  <span>Order Requests</span>
                   <span className="px-1.5 py-0.2 bg-purple-200 text-purple-900 rounded-full text-[10px] font-extrabold">
                     {productRequests.length}
                   </span>
@@ -657,104 +1107,19 @@ const CustomerPortalPage = () => {
                 </button>
               </div>
 
-              {/* 1. NEGOTIATIONS / COUNTER-OFFERS SECTION */}
-              {(requestsSubTab === 'all' || requestsSubTab === 'negotiations') && (
+              {/* 1. PRODUCT & BUNDLE REQUESTS SECTION */}
+              {(requestsSubTab === 'all' || requestsSubTab === 'products') && (
                 <div className="pt-2 space-y-3">
                   <div className="flex items-center justify-between">
                     <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-[#a459a8]" />
-                      Quotation Counter-Offers & Discount Requests ({negotiationsList.length})
-                    </h3>
-                  </div>
-
-                  {negotiationsList.length === 0 ? (
-                    requestsSubTab === 'negotiations' && (
-                      <div className="py-8 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                        No counter-offers submitted yet. You can submit discount counter-proposals on the Quotation tab.
-                      </div>
-                    )
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-slate-200 text-xs">
-                        <thead>
-                          <tr className="text-slate-500 font-semibold uppercase bg-slate-50/70">
-                            <th className="py-2.5 px-3 text-left">Offer ID</th>
-                            <th className="py-2.5 px-3 text-left">Quote Ref</th>
-                            <th className="py-2.5 px-3 text-left">Item / Scope</th>
-                            <th className="py-2.5 px-3 text-right">Requested Price</th>
-                            <th className="py-2.5 px-3 text-center">Discount</th>
-                            <th className="py-2.5 px-3 text-center">Review Status</th>
-                            <th className="py-2.5 px-3 text-left">Submitted Date</th>
-                            <th className="py-2.5 px-3 text-left">Justification / Notes</th>
-                            <th className="py-2.5 px-3 text-right">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {negotiationsList.map((neg) => {
-                            let badgeVariant = 'warning';
-                            let statusLabel = neg.status;
-                            if (neg.status === 'APPROVAL_REQUIRED' || neg.status === 'PENDING') {
-                              badgeVariant = 'warning';
-                              statusLabel = 'UNDER REVIEW';
-                            } else if (neg.status === 'APPROVED' || neg.status === 'ACCEPTED') {
-                              badgeVariant = 'success';
-                              statusLabel = 'APPROVED';
-                            } else if (neg.status === 'REJECTED') {
-                              badgeVariant = 'danger';
-                              statusLabel = 'REJECTED';
-                            }
-
-                            return (
-                              <tr key={neg.id || neg.negotiationId} className="hover:bg-slate-50/50">
-                                <td className="py-3 px-3 font-mono font-bold text-[#a459a8]">{neg.id}</td>
-                                <td className="py-3 px-3 font-semibold text-slate-800">{neg.quoteNumber || quoteData?.quotationId}</td>
-                                <td className="py-3 px-3 text-slate-700 font-medium">{neg.productName}</td>
-                                <td className="py-3 px-3 text-right font-mono font-bold text-slate-900">
-                                  ₹{Number(neg.requestedPrice || 0).toLocaleString('en-IN')}
-                                </td>
-                                <td className="py-3 px-3 text-center font-mono font-bold text-emerald-600">
-                                  {neg.discountPercent}%
-                                </td>
-                                <td className="py-3 px-3 text-center">
-                                  <Badge variant={badgeVariant} dot>{statusLabel}</Badge>
-                                </td>
-                                <td className="py-3 px-3 text-slate-500">
-                                  {new Date(neg.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
-                                </td>
-                                <td className="py-3 px-3 text-slate-600 max-w-xs truncate" title={neg.message}>
-                                  {neg.message || 'No notes attached'}
-                                </td>
-                                <td className="py-3 px-3 text-right">
-                                  <button
-                                    onClick={() => setActiveTab('quote')}
-                                    className="px-2 py-1 text-[11px] font-bold text-[#a459a8] hover:bg-purple-50 rounded-lg border border-purple-200 transition-colors inline-flex items-center gap-1"
-                                  >
-                                    View Quote <ArrowRight className="w-3 h-3" />
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* 2. PRODUCT & BUNDLE REQUESTS SECTION */}
-              {(requestsSubTab === 'all' || requestsSubTab === 'products') && (
-                <div className="pt-4 space-y-3 border-t border-slate-100">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
                       <ShoppingBag className="w-3.5 h-3.5 text-[#a459a8]" />
-                      Product & Bundle Inclusions ({productRequests.length})
+                      Submitted Order Requests ({productRequests.length})
                     </h3>
                   </div>
 
                   {productRequests.length === 0 ? (
                     <div className="py-8 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                      No hardware or service requests submitted. Browse the Products & Services catalog to request item additions.
+                      No order requests submitted yet. Use the Order Cart or browse the Catalog to create requests.
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
@@ -762,12 +1127,12 @@ const CustomerPortalPage = () => {
                         <thead>
                           <tr className="text-slate-500 font-semibold uppercase bg-slate-50/70">
                             <th className="py-2.5 px-3 text-left">Request ID</th>
-                            <th className="py-2.5 px-3 text-left">Product</th>
+                            <th className="py-2.5 px-3 text-left">Product / Scope</th>
                             <th className="py-2.5 px-3 text-center">Qty</th>
                             <th className="py-2.5 px-3 text-right">Unit Price</th>
                             <th className="py-2.5 px-3 text-right">Est. Total Value</th>
                             <th className="py-2.5 px-3 text-center">Status</th>
-                            <th className="py-2.5 px-3 text-left">Linked Quotation</th>
+                            <th className="py-2.5 px-3 text-left">Sales Representative</th>
                             <th className="py-2.5 px-3 text-left">Requested Date</th>
                             <th className="py-2.5 px-3 text-right">Action</th>
                           </tr>
@@ -779,7 +1144,6 @@ const CustomerPortalPage = () => {
                             if (req.status === 'REJECTED' || req.status === 'CANCELLED') badgeVariant = 'danger';
                             if (req.status === 'QUOTATION_CREATED' || req.status === 'QUOTED') badgeVariant = 'info';
 
-                            const linkedQuote = req.linkedQuotation || (req.quotations && req.quotations.length > 0 ? req.quotations[0] : null);
                             const totalEstValue = req.totalAmount || req.estimatedTotal || ((req.quantity || 1) * (req.unitPrice || 0));
 
                             return (
@@ -799,19 +1163,8 @@ const CustomerPortalPage = () => {
                                 <td className="py-3 px-3 text-center">
                                   <Badge variant={badgeVariant} dot>{req.status}</Badge>
                                 </td>
-                                <td className="py-3 px-3">
-                                  {linkedQuote ? (
-                                    <div className="space-y-0.5">
-                                      <span className="font-mono font-bold text-purple-800 bg-purple-50 px-2 py-0.5 rounded border border-purple-200 text-[11px] block w-fit">
-                                        #{linkedQuote.quoteNumber || linkedQuote.id}
-                                      </span>
-                                      <span className="text-[10px] text-slate-600 block">
-                                        Amount: <span className="font-semibold text-slate-900">₹{Number(linkedQuote.totalAmount || linkedQuote.total || 0).toLocaleString('en-IN')}</span>
-                                      </span>
-                                    </div>
-                                  ) : (
-                                    <span className="text-[10px] text-slate-400 italic">Quotation in progress</span>
-                                  )}
+                                <td className="py-3 px-3 text-slate-700 font-medium">
+                                  {req.assignedSalesRep?.name || req.assignedSalesRep?.fullName || 'Assigned Sales Rep'}
                                 </td>
                                 <td className="py-3 px-3 text-slate-500">
                                   {new Date(req.createdAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -824,21 +1177,8 @@ const CustomerPortalPage = () => {
                                     >
                                       Cancel
                                     </button>
-                                  ) : linkedQuote ? (
-                                    <button
-                                      onClick={() => {
-                                        if (linkedQuote.portalToken && linkedQuote.portalToken !== token) {
-                                          navigate(`/customer-portal/${linkedQuote.portalToken}`);
-                                        } else {
-                                          setActiveTab('quote');
-                                        }
-                                      }}
-                                      className="px-2.5 py-1 text-[11px] font-bold text-[#a459a8] hover:bg-purple-50 rounded-lg border border-purple-200 transition-colors inline-flex items-center gap-1 cursor-pointer"
-                                    >
-                                      View Quote <ArrowRight className="w-3 h-3" />
-                                    </button>
                                   ) : (
-                                    <span className="text-slate-400 text-[10px]">&mdash;</span>
+                                    <span className="text-slate-400 text-[10px]">&bull; In Review</span>
                                   )}
                                 </td>
                               </tr>
@@ -851,25 +1191,25 @@ const CustomerPortalPage = () => {
                 </div>
               )}
 
-              {/* 3. CONFIRMED ORDERS & SHIPMENTS SECTION */}
+              {/* 2. CONFIRMED ORDERS & SHIPMENTS SECTION */}
               {(requestsSubTab === 'all' || requestsSubTab === 'orders') && (
                 <div className="pt-4 space-y-3 border-t border-slate-100">
                   <div className="flex items-center justify-between">
                     <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
-                      <FileText className="w-3.5 h-3.5 text-[#a459a8]" />
+                      <Truck className="w-3.5 h-3.5 text-[#a459a8]" />
                       Confirmed Orders & Delivery Tracking ({ordersList.length})
                     </h3>
                   </div>
 
                   {ordersList.length === 0 ? (
                     <div className="py-8 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                      No confirmed orders found. Once you accept a quotation, your order and warehouse delivery tracking will appear here.
+                      No confirmed orders found. Once your quotation requests are approved, your orders and warehouse delivery tracking will appear here.
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {ordersList.map((ord) => {
                         let badgeVariant = 'warning';
-                        if (ord.status === 'COMPLETED') badgeVariant = 'success';
+                        if (ord.status === 'COMPLETED' || ord.status === 'FULFILLED') badgeVariant = 'success';
                         if (ord.status === 'PARTIALLY_FULFILLED') badgeVariant = 'warning';
 
                         return (
@@ -890,7 +1230,7 @@ const CustomerPortalPage = () => {
                             </div>
                             <div className="pt-2 border-t border-slate-200 text-[11px] text-slate-400 flex justify-between">
                               <span>Placed on {new Date(ord.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                              <span className="text-emerald-700 font-bold">{ord.fulfillmentCount} Shipments Dispatched</span>
+                              <span className="text-emerald-700 font-bold">{ord.fulfillmentCount || 1} Shipments Dispatched</span>
                             </div>
                           </div>
                         );
@@ -904,207 +1244,126 @@ const CustomerPortalPage = () => {
         )}
 
         {/* ===================================================
-            TAB 3: CURRENT QUOTATION & NEGOTIATION
+            TAB 4: MY COMPANY PROFILE & SELF-EDITING (NEW)
         =================================================== */}
-        {activeTab === 'quote' && (
+        {activeTab === 'profile' && (
           <div className="space-y-6">
-            {submittedStatus && (
-              <div className={`p-6 rounded-2xl border text-center shadow-sm space-y-2 ${
-                submittedStatus.reApprovalTriggered
-                  ? 'bg-amber-50 border-amber-200 text-amber-900'
-                  : 'bg-emerald-50 border-emerald-200 text-emerald-900'
-              }`}>
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center mx-auto ${
-                  submittedStatus.reApprovalTriggered ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
-                }`}>
-                  {submittedStatus.reApprovalTriggered ? <Clock className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
-                </div>
-                <h3 className="text-base font-bold">{submittedStatus.message}</h3>
-                <p className="text-xs opacity-80">Quotation Status: <span className="font-bold">{submittedStatus.status}</span></p>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Left 2 Cols: Quote Details & Line Items */}
-              <div className="lg:col-span-2 space-y-6">
-                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-                  <div className="flex justify-between items-center pb-4 border-b border-slate-100">
-                    <div>
-                      <h3 className="text-base font-bold text-slate-900">Quotation Proposal: {quoteData.quotationId}</h3>
-                      <p className="text-xs text-slate-500 mt-0.5">Prepared exclusively for <span className="font-semibold text-slate-700">{quoteData.customerName} ({quoteData.contactPerson})</span></p>
-                    </div>
-                    <Badge variant="primary">Valid Until {quoteData.quoteValidity}</Badge>
-                  </div>
-
-                  {/* Line items table */}
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-slate-200 text-xs">
-                      <thead>
-                        <tr className="text-slate-500 font-semibold uppercase">
-                          <th className="py-2 text-left">Item Description</th>
-                          <th className="py-2 text-center">Qty</th>
-                          <th className="py-2 text-right">Price</th>
-                          <th className="py-2 text-right">Discount</th>
-                          <th className="py-2 text-right">Net ({quoteData?.currency || 'INR'})</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {(quoteData?.lineItems || []).map((item) => (
-                          <React.Fragment key={item.id}>
-                            <tr>
-                              <td className="py-3 font-medium text-slate-800">
-                                {item.name}
-                                {String(item.id).includes('req') && (
-                                  <span className="ml-2 px-1.5 py-0.2 bg-purple-100 text-purple-700 text-[9px] font-bold rounded">
-                                    Added from Product Request
-                                  </span>
-                                )}
-                              </td>
-                              <td className="py-3 text-center font-mono">{item.qty}</td>
-                              <td className="py-3 text-right font-mono">₹{Number(item.price || 0).toLocaleString('en-IN')}</td>
-                              <td className="py-3 text-right font-mono text-emerald-600 font-semibold">{item.discount}%</td>
-                              <td className="py-3 text-right font-mono font-bold text-slate-900">₹{Number(item.total || 0).toLocaleString('en-IN')}</td>
-                            </tr>
-                            <tr>
-                              <td colSpan={5} className="pb-3 pt-0">
-                                <div className="flex items-center gap-2 pl-2">
-                                  <input
-                                    type="text"
-                                    placeholder={`Ask question or comment on ${item.name}...`}
-                                    value={activeLineComment[item.id] || ''}
-                                    onChange={(e) => setActiveLineComment({ ...activeLineComment, [item.id]: e.target.value })}
-                                    className="flex-1 px-2.5 py-1 text-[11px] border border-slate-200 rounded-lg focus:outline-none focus:border-[#a459a8]"
-                                  />
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="text-[10px] py-1 px-2"
-                                    onClick={() => handleAddLineComment(item.id)}
-                                  >
-                                    <MessageSquare className="w-3 h-3 mr-1" /> Send Note
-                                  </Button>
-                                </div>
-                              </td>
-                            </tr>
-                          </React.Fragment>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Total Investment */}
-                  <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
-                    <span className="text-xs font-bold text-slate-700 uppercase">Total Proposed Investment:</span>
-                    <span className="text-xl font-extrabold text-[#a459a8]">
-                      ₹{(quoteData?.lineItems || []).reduce((acc, curr) => acc + (curr.total || 0), 0).toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Negotiation / Status History */}
-                {quoteData?.negotiationHistory && quoteData.negotiationHistory.length > 0 && (
-                  <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Negotiation & Activity History</h4>
-                    <div className="space-y-2">
-                      {quoteData.negotiationHistory.map((hist, i) => (
-                        <div key={i} className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs space-y-1">
-                          <div className="flex justify-between items-center text-[10px] text-slate-400">
-                            <span className="font-semibold text-slate-700">{hist.actor}</span>
-                            <span>{new Date(hist.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                          </div>
-                          <p className="text-slate-600">{hist.message}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Right 1 Col: Negotiation Panel */}
-              <div className="space-y-6">
-                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-[#a459a8]" />
-                    Negotiate & Counter
-                  </h3>
-
-                  <div className="space-y-3 text-xs">
-                    <div>
-                      <label className="font-semibold text-slate-700">Requested Counter Discount (%)</label>
-                      <input
-                        type="number"
-                        value={counterDiscount}
-                        onChange={(e) => setCounterDiscount(Number(e.target.value))}
-                        className="w-full mt-1 px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-[#a459a8]/30 font-mono"
-                        min="0"
-                        max="50"
-                      />
-                      <p className="text-[10px] text-slate-400 mt-1">
-                        Standard discount is {quoteData.currentDiscount}%. Setting &gt;10% will route for re-approval.
-                      </p>
-                    </div>
-
-                    <div>
-                      <label className="font-semibold text-slate-700">Requested Delivery Date</label>
-                      <input
-                        type="date"
-                        value={requestedDate}
-                        onChange={(e) => setRequestedDate(e.target.value)}
-                        className="w-full mt-1 px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-[#a459a8]/30"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="font-semibold text-slate-700">Customer Terms / Justification Note</label>
-                      <textarea
-                        rows={4}
-                        value={comment}
-                        onChange={(e) => setComment(e.target.value)}
-                        className="w-full mt-1 p-3 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-[#a459a8]/30"
-                        placeholder="Provide term requirements or multi-year commitment justification..."
-                      />
-                    </div>
-
-                    <div className="pt-2 space-y-2">
-                      <Button
-                        variant="primary"
-                        className="w-full bg-[#a459a8] hover:bg-[#924b96]"
-                        icon={Send}
-                        onClick={handleSubmitCounter}
-                      >
-                        Submit Counter Request
-                      </Button>
-                      <Button
-                        variant="success"
-                        className="w-full bg-emerald-600 hover:bg-emerald-700"
-                        icon={Check}
-                        onClick={handleConfirmQuotation}
-                      >
-                        Confirm & Accept Quotation
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quick Add Products banner */}
-                <div className="p-4 bg-purple-50 rounded-2xl border border-purple-200 text-xs space-y-2">
-                  <div className="flex items-center gap-2 text-purple-900 font-bold">
-                    <ShoppingBag className="w-4 h-4 text-[#a459a8]" />
-                    <span>Need More Hardware or Services?</span>
-                  </div>
-                  <p className="text-[11px] text-purple-800 leading-relaxed">
-                    Browse our product catalog to request add-on storage, docking stations, or 24/7 SLA plans.
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 pb-4 border-b border-slate-100">
+                <div>
+                  <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                    <Building className="w-5 h-5 text-[#a459a8]" />
+                    Enterprise Account & Profile Settings
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Manage and update your company details, primary procurement contacts, billing information, and default delivery addresses.
                   </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant={profileData.tier === 'GOLD' ? 'warning' : profileData.tier === 'SILVER' ? 'primary' : 'secondary'}>
+                    Customer Tier: {profileData.tier}
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Profile Edit Form */}
+              <form onSubmit={handleSaveProfile} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <User className="w-3.5 h-3.5 text-slate-400" /> Primary Contact Person *
+                    </label>
+                    <input
+                      type="text"
+                      value={profileData.name}
+                      onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
+                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:border-[#a459a8]"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <Building className="w-3.5 h-3.5 text-slate-400" /> Enterprise Company Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={profileData.companyName}
+                      onChange={(e) => setProfileData({ ...profileData, companyName: e.target.value })}
+                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:border-[#a459a8]"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <Mail className="w-3.5 h-3.5 text-slate-400" /> Procurement Email Address
+                    </label>
+                    <input
+                      type="email"
+                      value={profileData.email}
+                      disabled
+                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-100 text-slate-500 font-mono cursor-not-allowed"
+                    />
+                    <span className="text-[10px] text-slate-400 mt-0.5 block">Email is your unique portal login identifier.</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5 text-slate-400" /> Contact Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={profileData.phone}
+                      onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
+                      placeholder="+91 98200 12345"
+                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:border-[#a459a8]"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-2 border-t border-slate-100">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-slate-400" /> Corporate Billing Address
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={profileData.billingAddress}
+                      onChange={(e) => setProfileData({ ...profileData, billingAddress: e.target.value })}
+                      placeholder="e.g. 42 Cyber City, Magarpatta, Pune, MH 411028"
+                      className="w-full p-2.5 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:border-[#a459a8]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <Truck className="w-3.5 h-3.5 text-slate-400" /> Default Warehouse Shipping Address
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={profileData.shippingAddress}
+                      onChange={(e) => setProfileData({ ...profileData, shippingAddress: e.target.value })}
+                      placeholder="e.g. Warehouse Bay 4, Logistics Park, Bengaluru, KA 560100"
+                      className="w-full p-2.5 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:border-[#a459a8]"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-3 flex justify-end">
                   <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setActiveTab('catalog')}
-                    className="w-full border-purple-300 text-purple-900 hover:bg-purple-100 text-xs"
+                    type="submit"
+                    variant="primary"
+                    icon={Save}
+                    disabled={isSavingProfile}
+                    className="py-2.5 px-6 font-bold bg-[#a459a8] hover:bg-[#924b96] text-white shadow-md shadow-[#a459a8]/20"
                   >
-                    Open Product Catalog
+                    {isSavingProfile ? 'Saving Changes...' : 'Save Profile Changes'}
                   </Button>
                 </div>
-              </div>
+              </form>
             </div>
           </div>
         )}

@@ -1,16 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, X, RotateCcw, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Check, X, RotateCcw, AlertCircle, Lock } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
 import Card from '../components/common/Card';
 import Badge from '../components/common/Badge';
 import Button from '../components/common/Button';
 import Modal from '../components/common/Modal';
 import approvalAPI from '../api/approvalAPI';
+import { useAuth } from '../contexts/AuthContext';
 
 const ApprovalDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user, role } = useAuth();
+  const currentRole = (user?.role || role || '').toLowerCase().trim();
+  const canApprove = currentRole === 'admin' || currentRole === 'sales_manager' || currentRole === 'finance_ops';
 
   const [approval, setApproval] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -40,6 +44,7 @@ const ApprovalDetailPage = () => {
   }, [id]);
 
   const handleAction = async () => {
+    if (!canApprove) return;
     try {
       setIsSubmitting(true);
       setActionError('');
@@ -100,32 +105,39 @@ const ApprovalDetailPage = () => {
 
         {/* Action Buttons */}
         {status === 'PENDING' && (
-          <div className="flex items-center gap-2.5">
-            <Button
-              variant="danger"
-              size="sm"
-              icon={X}
-              onClick={() => setModalType('reject')}
-            >
-              Reject Request
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={RotateCcw}
-              onClick={() => setModalType('return')}
-            >
-              Return for Revision
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              icon={Check}
-              onClick={() => setModalType('approve')}
-            >
-              Approve Quotation
-            </Button>
-          </div>
+          canApprove ? (
+            <div className="flex items-center gap-2.5">
+              <Button
+                variant="danger"
+                size="sm"
+                icon={X}
+                onClick={() => setModalType('reject')}
+              >
+                Reject Request
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={RotateCcw}
+                onClick={() => setModalType('return')}
+              >
+                Return for Revision
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                icon={Check}
+                onClick={() => setModalType('approve')}
+              >
+                Approve Quotation
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+              <Lock className="w-3.5 h-3.5 text-slate-500" />
+              <span>Read-Only: Manager Authorization Required</span>
+            </div>
+          )
         )}
       </div>
 

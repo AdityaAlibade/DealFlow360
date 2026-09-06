@@ -6,9 +6,92 @@ const prisma = require('../models');
 const { sendPasswordResetEmail } = require('../services/emailService');
 
 const authController = {
+  registerCustomer: async (req, res, next) => {
+    try {
+      const { email, password, fullName, companyName, phone, billingAddress, shippingAddress } = req.body;
+      if (!email || !password || !fullName || !companyName) {
+        return res.status(400).json({
+          success: false,
+          message: 'Full Name, Company Name, Email, and Password are required.'
+        });
+      }
+
+      const cleanEmail = email.trim().toLowerCase();
+      const existingUser = await prisma.user.findUnique({ where: { email: cleanEmail } });
+      if (existingUser) {
+        return res.status(409).json({
+          success: false,
+          message: 'An account with this email address already exists. Please sign in instead.'
+        });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // 1. Create User in PostgreSQL
+      const user = await prisma.user.create({
+        data: {
+          email: cleanEmail,
+          password: hashedPassword,
+          fullName: fullName.trim(),
+          role: 'CUSTOMER',
+          phone: phone ? phone.trim() : null,
+          department: 'Strategic Procurement',
+          title: 'Purchasing Lead',
+          avatar: fullName.substring(0, 2).toUpperCase()
+        }
+      });
+
+      // 2. Create / Upsert Customer record in PostgreSQL
+      const customer = await prisma.customer.upsert({
+        where: { email: cleanEmail },
+        update: {
+          name: fullName.trim(),
+          companyName: companyName.trim(),
+          phone: phone ? phone.trim() : null,
+          billingAddress: billingAddress ? billingAddress.trim() : null,
+          shippingAddress: shippingAddress ? shippingAddress.trim() : null
+        },
+        create: {
+          name: fullName.trim(),
+          companyName: companyName.trim(),
+          email: cleanEmail,
+          phone: phone ? phone.trim() : null,
+          tier: 'BRONZE',
+          billingAddress: billingAddress ? billingAddress.trim() : null,
+          shippingAddress: shippingAddress ? shippingAddress.trim() : null
+        }
+      });
+
+      const token = jwt.sign(
+        { id: user.id, customerId: customer.id, email: user.email, role: 'CUSTOMER', fullName: user.fullName },
+        config.jwt.secret,
+        { expiresIn: config.jwt.expiresIn }
+      );
+
+      const userResponse = {
+        ...user,
+        customerId: customer.id,
+        companyName: customer.companyName,
+        billingAddress: customer.billingAddress,
+        shippingAddress: customer.shippingAddress
+      };
+      delete userResponse.password;
+
+      res.status(201).json({
+        success: true,
+        message: 'Customer account successfully created. Welcome to DealFlow360 Customer Portal!',
+        token,
+        user: userResponse,
+        customer
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
   register: async (req, res, next) => {
     try {
-      const { email, password, fullName, role, phone, department, title } = req.body;
+      const { email, password, fullName, companyName, role, phone, department, title, billingAddress, shippingAddress } = req.body;
       if (!email || !password) {
         return res.status(400).json({ success: false, message: 'Email and password are required.' });
       }
@@ -19,34 +102,59 @@ const authController = {
         return res.status(409).json({ success: false, message: 'User with this email already exists.' });
       }
 
+      const assignedRole = (role || 'CUSTOMER').toUpperCase();
       const hashedPassword = await bcrypt.hash(password, 10);
       const user = await prisma.user.create({
         data: {
           email: cleanEmail,
           password: hashedPassword,
           fullName: fullName || cleanEmail.split('@')[0],
-          role: (role || 'SALES_REP').toUpperCase(),
+          role: assignedRole,
           phone: phone || null,
-          department: department || 'Sales',
-          title: title || 'Sales Representative',
+          department: department || (assignedRole === 'CUSTOMER' ? 'Strategic Procurement' : 'Sales'),
+          title: title || (assignedRole === 'CUSTOMER' ? 'Purchasing Lead' : 'Sales Representative'),
           avatar: (fullName || cleanEmail).substring(0, 2).toUpperCase()
         }
       });
 
+      let customer = null;
+      if (assignedRole === 'CUSTOMER' || companyName) {
+        customer = await prisma.customer.upsert({
+          where: { email: cleanEmail },
+          update: {
+            name: fullName ? fullName.trim() : cleanEmail.split('@')[0],
+            companyName: companyName ? companyName.trim() : (fullName || 'Enterprise Customer'),
+            phone: phone || null,
+            billingAddress: billingAddress || null,
+            shippingAddress: shippingAddress || null
+          },
+          create: {
+            name: fullName ? fullName.trim() : cleanEmail.split('@')[0],
+            companyName: companyName ? companyName.trim() : (fullName || 'Enterprise Customer'),
+            email: cleanEmail,
+            phone: phone || null,
+            tier: 'BRONZE',
+            billingAddress: billingAddress || null,
+            shippingAddress: shippingAddress || null
+          }
+        });
+      }
+
       const token = jwt.sign(
-        { id: user.id, email: user.email, role: user.role, fullName: user.fullName },
+        { id: user.id, customerId: customer?.id, email: user.email, role: user.role, fullName: user.fullName },
         config.jwt.secret,
         { expiresIn: config.jwt.expiresIn }
       );
 
-      const userResponse = { ...user };
+      const userResponse = { ...user, customerId: customer?.id, companyName: customer?.companyName };
       delete userResponse.password;
 
       res.status(201).json({
         success: true,
         message: 'User registered successfully',
         token,
-        user: userResponse
+        user: userResponse,
+        customer
       });
     } catch (error) {
       next(error);

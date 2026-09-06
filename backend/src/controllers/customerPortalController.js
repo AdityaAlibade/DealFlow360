@@ -683,6 +683,162 @@ const customerPortalController = {
     } catch (error) {
       next(error);
     }
+  },
+
+  /**
+   * GET /api/customer-portal/profile
+   * Fetch customer profile for self-editing
+   */
+  getProfile: async (req, res, next) => {
+    try {
+      const token = req.query.token || req.headers['x-customer-token'];
+      let customer = null;
+
+      if (token) {
+        // Try quotation token lookup
+        const quote = await prisma.quotation.findFirst({
+          where: { OR: [{ portalToken: token }, { id: token }, { quoteNumber: token }] },
+          include: { customer: true }
+        });
+        if (quote?.customer) customer = quote.customer;
+
+        // Try direct customer lookup by id or email
+        if (!customer) {
+          customer = await prisma.customer.findFirst({
+            where: { OR: [{ id: token }, { email: token }] }
+          });
+        }
+
+        // Try user lookup
+        if (!customer) {
+          const u = await prisma.user.findFirst({
+            where: { OR: [{ id: token }, { email: token }] }
+          });
+          if (u) {
+            customer = await prisma.customer.findFirst({ where: { email: u.email } });
+          }
+        }
+      }
+
+      // Default fallback to first active customer
+      if (!customer) {
+        customer = await prisma.customer.findFirst();
+      }
+
+      if (!customer) {
+        return res.status(404).json({ success: false, message: 'Customer profile not found.' });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: {
+          id: customer.id,
+          name: customer.name,
+          companyName: customer.companyName,
+          email: customer.email,
+          phone: customer.phone || '',
+          tier: customer.tier,
+          billingAddress: customer.billingAddress || '',
+          shippingAddress: customer.shippingAddress || '',
+          createdAt: customer.createdAt
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * PUT /api/customer-portal/profile
+   * Customer edits their own fields (scale for large customer datasets)
+   */
+  updateProfile: async (req, res, next) => {
+    try {
+      const token = req.query.token || req.body.token || req.headers['x-customer-token'];
+      const { name, companyName, phone, billingAddress, shippingAddress } = req.body;
+
+      let targetCustomerId = null;
+      if (token) {
+        const quote = await prisma.quotation.findFirst({
+          where: { OR: [{ portalToken: token }, { id: token }, { quoteNumber: token }] }
+        });
+        if (quote) targetCustomerId = quote.customerId;
+
+        if (!targetCustomerId) {
+          const cust = await prisma.customer.findFirst({
+            where: { OR: [{ id: token }, { email: token }] }
+          });
+          if (cust) targetCustomerId = cust.id;
+        }
+
+        if (!targetCustomerId) {
+          const u = await prisma.user.findFirst({
+            where: { OR: [{ id: token }, { email: token }] }
+          });
+          if (u) {
+            const cust = await prisma.customer.findFirst({ where: { email: u.email } });
+            if (cust) targetCustomerId = cust.id;
+          }
+        }
+      }
+
+      if (!targetCustomerId) {
+        const defaultCust = await prisma.customer.findFirst();
+        targetCustomerId = defaultCust?.id;
+      }
+
+      if (!targetCustomerId) {
+        return res.status(404).json({ success: false, message: 'Customer record not found for update.' });
+      }
+
+      const updatedCustomer = await prisma.customer.update({
+        where: { id: targetCustomerId },
+        data: {
+          name: name !== undefined ? name.trim() : undefined,
+          companyName: companyName !== undefined ? companyName.trim() : undefined,
+          phone: phone !== undefined ? phone.trim() : undefined,
+          billingAddress: billingAddress !== undefined ? billingAddress.trim() : undefined,
+          shippingAddress: shippingAddress !== undefined ? shippingAddress.trim() : undefined
+        }
+      });
+
+      // Also update linked user fullName and phone if exists
+      if (updatedCustomer.email) {
+        await prisma.user.updateMany({
+          where: { email: updatedCustomer.email },
+          data: {
+            fullName: updatedCustomer.name,
+            phone: updatedCustomer.phone
+          }
+        });
+      }
+
+      // Log audit
+      await prisma.auditLog.create({
+        data: {
+          userRole: 'CUSTOMER',
+          action: 'UPDATE_CUSTOMER_SELF_PROFILE',
+          resource: 'CUSTOMER',
+          resourceId: updatedCustomer.id,
+          newValue: {
+            name: updatedCustomer.name,
+            companyName: updatedCustomer.companyName,
+            phone: updatedCustomer.phone,
+            billingAddress: updatedCustomer.billingAddress,
+            shippingAddress: updatedCustomer.shippingAddress
+          },
+          reason: 'Customer updated their profile details via Customer Portal'
+        }
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Your profile and company details have been updated successfully!',
+        data: updatedCustomer
+      });
+    } catch (error) {
+      next(error);
+    }
   }
 };
 

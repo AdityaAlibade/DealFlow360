@@ -90,6 +90,23 @@ export const customerPortalAPI = {
     } catch {
       return ProductRequestService.cancelProductRequest(token, requestId);
     }
+  },
+
+  // Customer Self-Profile Management
+  getProfile: async (token) => {
+    const res = await axios.get(`${API_BASE_URL}/customer-portal/profile`, {
+      params: { token },
+      headers: { 'x-customer-token': token }
+    });
+    return res.data;
+  },
+
+  updateProfile: async (token, profileData) => {
+    const res = await axios.put(`${API_BASE_URL}/customer-portal/profile`, profileData, {
+      params: { token },
+      headers: { 'x-customer-token': token }
+    });
+    return res.data;
   }
 };
 

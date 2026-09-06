@@ -1,16 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Save, AlertCircle, CheckCircle2, Lock } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
 import Select from '../components/common/Select';
 import productAPI from '../api/productAPI';
+import { useAuth } from '../contexts/AuthContext';
 
 const ProductDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user, role } = useAuth();
+  const currentRole = (user?.role || role || '').toLowerCase().trim();
+  const isAdmin = currentRole === 'admin';
   const isNew = !id || id === 'new';
 
   const [formData, setFormData] = useState({
@@ -29,6 +33,11 @@ const ProductDetailPage = () => {
   const [message, setMessage] = useState(null);
 
   useEffect(() => {
+    if (!isAdmin && isNew) {
+      navigate('/products');
+      return;
+    }
+
     if (!isNew) {
       const loadProduct = async () => {
         try {
@@ -55,9 +64,10 @@ const ProductDetailPage = () => {
       };
       loadProduct();
     }
-  }, [id, isNew]);
+  }, [id, isNew, isAdmin]);
 
   const handleChange = (e) => {
+    if (!isAdmin) return;
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
@@ -67,6 +77,7 @@ const ProductDetailPage = () => {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    if (!isAdmin) return;
     try {
       setSaving(true);
       setMessage(null);
@@ -117,9 +128,16 @@ const ProductDetailPage = () => {
           </div>
         </div>
 
-        <Button variant="primary" size="sm" icon={Save} onClick={handleSave} disabled={saving}>
-          {saving ? 'Saving...' : 'Save Configuration'}
-        </Button>
+        {isAdmin ? (
+          <Button variant="primary" size="sm" icon={Save} onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving...' : 'Save Configuration'}
+          </Button>
+        ) : (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 text-xs font-semibold rounded-lg border border-amber-200">
+            <Lock className="w-3.5 h-3.5" />
+            <span>Read-Only Product (Admin Only)</span>
+          </div>
+        )}
       </div>
 
       {message && (

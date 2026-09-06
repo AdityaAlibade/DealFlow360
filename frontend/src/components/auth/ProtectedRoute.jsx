@@ -11,7 +11,8 @@ const ProtectedRoute = ({
   requiredPermissions,
   allowedRoles
 }) => {
-  const { user, role, switchRole } = useAuth();
+  const { user } = useAuth();
+  const currentRole = (user?.role || '').toLowerCase().trim();
 
   // 1. Not logged in -> 401 Authentication Required
   if (!user) {
@@ -38,7 +39,7 @@ const ProtectedRoute = ({
   }
 
   // 2. Customer user trying to access internal routes -> 403 Customer Portal Access Only
-  if (role === 'customer') {
+  if (currentRole === 'customer') {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
         <div className="bg-slate-800 max-w-lg w-full rounded-2xl shadow-2xl border border-slate-700 p-8 text-center space-y-5">
@@ -52,12 +53,12 @@ const ProtectedRoute = ({
             <h2 className="text-xl font-extrabold text-white mt-3">403 - Customer Portal Access Only</h2>
           </div>
           <p className="text-xs text-slate-300 leading-relaxed">
-            As an external customer user (<span className="font-semibold text-white">{user.name}</span>), internal management dashboards, fulfillment queues, and platform configuration are strictly restricted.
+            As an external customer user (<span className="font-semibold text-white">{user.name || user.fullName}</span>), internal management dashboards, fulfillment queues, and platform configuration are strictly restricted.
           </p>
           <div className="p-4 bg-slate-900/80 rounded-xl border border-slate-700 text-left space-y-2">
             <p className="text-xs text-slate-400 font-medium">Your authorized workspace is the Customer Portal:</p>
             <Link
-              to="/customer-portal/demo-token-123"
+              to="/customer"
               className="inline-flex items-center gap-2 text-xs font-bold text-[#e2b7e5] hover:text-white transition-colors"
             >
               Open Secure Customer Portal <ExternalLink className="w-3.5 h-3.5" />
@@ -73,18 +74,21 @@ const ProtectedRoute = ({
     );
   }
 
+  // Admin has full access to all internal modules
+  if (currentRole === 'admin') {
+    return children;
+  }
+
   // 3. Check Role Whitelist
   if (allowedRoles && allowedRoles.length > 0) {
-    if (!allowedRoles.includes(role)) {
+    const normalizedAllowed = allowedRoles.map((r) => String(r).toLowerCase().trim());
+    if (!normalizedAllowed.includes(currentRole)) {
       // Auto-redirect to role-appropriate portal dashboard rather than trapping in 403
-      if (role === 'sales_rep' || role === 'sales_manager') {
+      if (currentRole === 'sales_rep' || currentRole === 'sales_manager') {
         return <Navigate to="/sales" replace />;
       }
-      if (role === 'finance_ops') {
+      if (currentRole === 'finance_ops') {
         return <Navigate to="/finance" replace />;
-      }
-      if (role === 'admin') {
-        return <Navigate to="/admin" replace />;
       }
 
       return (
@@ -100,11 +104,11 @@ const ProtectedRoute = ({
               <h2 className="text-xl font-bold text-slate-900 mt-2">403 - Access Denied</h2>
             </div>
             <p className="text-xs text-slate-600">
-              Your role <span className="font-bold text-slate-800 font-mono">[{user.roleLabel || role}]</span> is not permitted to view this module. Allowed roles:{' '}
+              Your role <span className="font-bold text-slate-800 font-mono">[{user.roleLabel || currentRole}]</span> is not permitted to view this module. Allowed roles:{' '}
               <span className="font-semibold text-slate-700">{allowedRoles.join(', ')}</span>.
             </p>
             <div className="pt-2">
-              <Link to={role === 'admin' ? '/admin' : (role === 'finance_ops' ? '/finance' : '/sales')}>
+              <Link to={currentRole === 'finance_ops' ? '/finance' : '/sales'}>
                 <Button variant="secondary" className="text-xs">
                   Return to Dashboard
                 </Button>
@@ -117,7 +121,7 @@ const ProtectedRoute = ({
   }
 
   // 4. Check Granular Permission
-  if (requiredPermission && !hasPermission(role, requiredPermission)) {
+  if (requiredPermission && !hasPermission(currentRole, requiredPermission)) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center p-6">
         <div className="bg-white max-w-lg w-full rounded-2xl shadow-xl border border-red-200 p-8 text-center space-y-4">
@@ -131,7 +135,7 @@ const ProtectedRoute = ({
             <h2 className="text-xl font-bold text-slate-900 mt-2">403 - Access Denied</h2>
           </div>
           <p className="text-xs text-slate-600">
-            This action requires permission <span className="font-mono font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded">{requiredPermission}</span> which is not granted to <span className="font-bold text-slate-800">{user.roleLabel || role}</span>.
+            This action requires permission <span className="font-mono font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded">{requiredPermission}</span> which is not granted to <span className="font-bold text-slate-800">{user.roleLabel || currentRole}</span>.
           </p>
           <div className="pt-2">
             <Link to="/dashboard">
@@ -147,7 +151,7 @@ const ProtectedRoute = ({
 
   // 5. Check List of Permissions
   if (requiredPermissions && requiredPermissions.length > 0) {
-    if (!hasAnyPermission(role, requiredPermissions)) {
+    if (!hasAnyPermission(currentRole, requiredPermissions)) {
       return (
         <div className="min-h-[70vh] flex items-center justify-center p-6">
           <div className="bg-white max-w-lg w-full rounded-2xl shadow-xl border border-red-200 p-8 text-center space-y-4">
@@ -156,7 +160,7 @@ const ProtectedRoute = ({
             </div>
             <h2 className="text-xl font-bold text-slate-900">403 - Access Denied</h2>
             <p className="text-xs text-slate-600">
-              Your role <span className="font-bold">{role}</span> lacks the required permissions.
+              Your role <span className="font-bold">{currentRole}</span> lacks the required permissions.
             </p>
           </div>
         </div>

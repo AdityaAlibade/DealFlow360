@@ -28,6 +28,8 @@ const dealHealthRoutes = require('./routes/dealHealthRoutes');
 const reportsRoutes = require('./routes/reportsRoutes');
 const productRoutes = require('./routes/productRoutes');
 const orderRequestRoutes = require('./routes/orderRequestRoutes');
+const customerRoutes = require('./routes/customerRoutes');
+const warehouseRoutes = require('./routes/warehouseRoutes');
 
 const app = express();
 
@@ -61,6 +63,7 @@ app.get('/', (req, res) => {
       fulfillments: '/api/fulfillments',
       backorders: '/api/backorders',
       warehouses: '/api/warehouses',
+      customers: '/api/customers',
       subscriptions: '/api/subscriptions',
       invoices: '/api/invoices',
       dealHealth: '/api/deal-health',
@@ -81,6 +84,8 @@ app.use('/api/approvals', approvalRoutes);
 app.use('/api/fulfillment', fulfillmentRoutes);
 app.use('/api/fulfillments', fulfillmentRoutes); // Alias
 app.use('/api/backorders', backorderRoutes);
+app.use('/api/warehouses', warehouseRoutes);
+app.use('/api/customers', customerRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/customer-portal', customerPortalRoutes);

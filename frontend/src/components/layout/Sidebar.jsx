@@ -11,6 +11,7 @@ import {
   Activity,
   BarChart3,
   ShoppingBag,
+  Users,
   ChevronLeft,
   ChevronRight,
   Shield
@@ -20,6 +21,7 @@ import { PERMISSIONS } from '../../utils/permissions';
 
 const allNavItems = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, permission: null },
+  { label: 'Customers', path: '/customers', icon: Users, permission: null },
   { label: 'Order Requests', path: '/order-requests', icon: Inbox, permission: PERMISSIONS.PRODUCT_REQUEST_VIEW },
   { label: 'Quotations', path: '/quotations', icon: FileText, permission: PERMISSIONS.QUOTATION_READ },
   { label: 'Approvals', path: '/approvals', icon: CheckCircle2, permission: PERMISSIONS.APPROVAL_READ },

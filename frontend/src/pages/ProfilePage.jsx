@@ -25,10 +25,12 @@ import MainLayout from '../components/layout/MainLayout';
 import Card from '../components/common/Card';
 import Badge from '../components/common/Badge';
 import Button from '../components/common/Button';
+import { useAuth } from '../contexts/AuthContext';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api';
 
 const ProfilePage = () => {
+  const { user } = useAuth();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -65,59 +67,29 @@ const ProfilePage = () => {
         const userData = response.data.user;
         setProfile(userData);
         setFormData({
-          fullName: userData.fullName || 'John Doe',
-          phone: userData.phone || '+1 (555) 382-9104',
-          department: userData.department || 'Enterprise Revenue & CPQ',
-          territory: userData.territory || 'North America - Tech & Financial',
-          title: userData.title || 'Senior Enterprise Sales Representative',
-          bio: userData.bio || 'Strategic CPQ Deal Specialist driving enterprise deal governance, margin protection, and multi-tier subscription packaging.'
+          fullName: userData.fullName || '',
+          phone: userData.phone || '',
+          department: userData.department || 'Enterprise Revenue',
+          territory: userData.territory || 'India & Global Enterprise',
+          title: userData.title || 'Revenue Operations Specialist',
+          bio: userData.bio || 'Managing enterprise CPQ quoting, margin governance, and revenue operations.'
         });
       } else {
         throw new Error(response.data?.message || 'Failed to retrieve profile data');
       }
     } catch (err) {
-      console.warn('API fetch error, falling back to local user profile:', err);
-      // Fallback profile matching Prisma schema
-      const fallbackUser = {
-        id: 'usr-cuid-9021',
-        fullName: 'John Doe',
-        email: 'demo@dealflow.com',
-        role: 'SALES_REP',
-        phone: '+1 (555) 382-9104',
-        department: 'Enterprise Revenue & CPQ',
-        territory: 'North America - Tech & Financial',
-        title: 'Senior Enterprise Sales Representative',
-        bio: 'Strategic CPQ Deal Specialist driving enterprise deal governance, margin protection, and multi-tier subscription packaging.',
-        status: 'ACTIVE',
-        createdAt: '2024-01-15T08:30:00.000Z',
-        updatedAt: new Date().toISOString(),
-        stats: {
-          totalQuotations: 42,
-          pendingApprovals: 8,
-          approvedDeals: 31,
-          closedRevenue: '₹28,50,000',
-          targetQuota: '₹40,00,000',
-          winRate: 78.5,
-          avgDealMargin: 24.2,
-          governanceScore: '94/100'
-        },
-        governanceLimits: {
-          maxSelfDiscount: '15%',
-          requiresManagerDiscount: '> 15%',
-          requiresFinanceDiscount: '> 25%',
-          canApproveTier: 'BRONZE, SILVER',
-          assignedWarehouses: ['Main Hub (BOM-1)', 'East Depot (CCU-1)']
-        }
-      };
-      setProfile(fallbackUser);
-      setFormData({
-        fullName: fallbackUser.fullName,
-        phone: fallbackUser.phone,
-        department: fallbackUser.department,
-        territory: fallbackUser.territory,
-        title: fallbackUser.title,
-        bio: fallbackUser.bio
-      });
+      console.warn('API fetch error for user profile:', err);
+      if (user) {
+        setProfile(user);
+        setFormData({
+          fullName: user.fullName || user.name || '',
+          phone: user.phone || '',
+          department: user.department || 'Enterprise Revenue',
+          territory: 'India & Global Enterprise',
+          title: user.roleLabel || 'Revenue Operations Specialist',
+          bio: 'Managing enterprise CPQ quoting, margin governance, and revenue operations.'
+        });
+      }
     } finally {
       setLoading(false);
     }

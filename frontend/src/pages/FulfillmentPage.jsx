@@ -24,7 +24,7 @@ const FulfillmentPage = () => {
   const navigate = useNavigate();
   const { user, role } = useAuth();
   const currentRole = (user?.role || role || '').toLowerCase().trim();
-  const isReadOnly = currentRole === 'sales_rep';
+  const isReadOnly = currentRole === 'sales_rep' || currentRole === 'admin';
 
   const [activeTab, setActiveTab] = useState('orders'); // 'orders' | 'inventory' | 'backorders'
   const [loading, setLoading] = useState(true);

@@ -14,7 +14,7 @@ const InvoiceDetailPage = () => {
   const navigate = useNavigate();
   const { user, role } = useAuth();
   const currentRole = (user?.role || role || '').toLowerCase().trim();
-  const isReadOnly = currentRole === 'sales_rep';
+  const isReadOnly = currentRole === 'sales_rep' || currentRole === 'admin';
 
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);

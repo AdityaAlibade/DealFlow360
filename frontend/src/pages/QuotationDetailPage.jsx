@@ -15,7 +15,8 @@ import {
   Sparkles,
   Check,
   X,
-  Inbox
+  Inbox,
+  Lock
 } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
 import Card from '../components/common/Card';
@@ -28,7 +29,9 @@ import { useAuth } from '../contexts/AuthContext';
 const QuotationDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+  const currentRole = (user?.role || role || '').toLowerCase().trim();
+  const isReadOnly = currentRole !== 'sales_rep';
 
   const [quotation, setQuotation] = useState(null);
   const [products, setProducts] = useState([]);
@@ -203,7 +206,7 @@ const QuotationDetailPage = () => {
               )}
             </div>
             <p className="text-xs text-slate-500">
-              Customer: {quotation?.customer || 'Account'} &bull; Assigned Rep: {user?.name || quotation?.salesRep || 'Sales Representative'}
+              Customer: {quotation?.customer?.companyName || quotation?.customer?.name || (typeof quotation?.customer === 'string' ? quotation.customer : 'Account')} &bull; Assigned Rep: {user?.name || quotation?.salesRep?.fullName || (typeof quotation?.salesRep === 'string' ? quotation.salesRep : 'Sales Representative')}
             </p>
           </div>
         </div>
@@ -217,17 +220,26 @@ const QuotationDetailPage = () => {
           >
             View Customer Portal
           </Button>
-          <Button variant="secondary" size="sm" icon={Save}>
-            Save Draft
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            icon={Send}
-            onClick={() => navigate('/approvals/Q-1042')}
-          >
-            Submit for Approval
-          </Button>
+          {!isReadOnly ? (
+            <>
+              <Button variant="secondary" size="sm" icon={Save}>
+                Save Draft
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                icon={Send}
+                onClick={() => navigate('/approvals/Q-1042')}
+              >
+                Submit for Approval
+              </Button>
+            </>
+          ) : (
+            <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+              <Lock className="w-3.5 h-3.5 text-slate-500" />
+              <span>Read-Only Quotation View</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -366,14 +378,18 @@ const QuotationDetailPage = () => {
           <div>
             <span className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Customer</span>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-sm font-bold text-slate-800">{quotation?.customer || 'Account'}</span>
-              <Badge variant="gold">{quotation?.tier || 'STANDARD'} Tier</Badge>
+              <span className="text-sm font-bold text-slate-800">
+                {quotation?.customer?.companyName || quotation?.customer?.name || (typeof quotation?.customer === 'string' ? quotation.customer : 'Account')}
+              </span>
+              <Badge variant="gold">{quotation?.customer?.tier || quotation?.tier || 'STANDARD'} Tier</Badge>
             </div>
           </div>
           <div>
             <span className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Contact Person</span>
-            <p className="text-sm font-semibold text-slate-800 mt-1">{quotation?.contactPerson || 'Procurement'}</p>
-            <p className="text-slate-500 text-[11px]">{quotation?.customerEmail || 'contact@client.com'}</p>
+            <p className="text-sm font-semibold text-slate-800 mt-1">
+              {quotation?.customer?.name || quotation?.contactPerson || 'Procurement'}
+            </p>
+            <p className="text-slate-500 text-[11px]">{quotation?.customer?.email || quotation?.customerEmail || 'contact@client.com'}</p>
           </div>
           <div>
             <span className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Portal Link</span>
@@ -386,7 +402,9 @@ const QuotationDetailPage = () => {
           </div>
           <div>
             <span className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Assigned Sales Rep</span>
-            <p className="text-sm font-semibold text-slate-800 mt-1">{quotation?.salesRep || user?.name || 'Sales Representative'}</p>
+            <p className="text-sm font-semibold text-slate-800 mt-1">
+              {quotation?.salesRep?.fullName || quotation?.salesRep?.name || (typeof quotation?.salesRep === 'string' ? quotation.salesRep : user?.name || 'Sales Representative')}
+            </p>
             <p className="text-slate-500 text-[11px]">Commercial Operations</p>
           </div>
         </div>

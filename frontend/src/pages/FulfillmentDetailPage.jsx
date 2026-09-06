@@ -10,7 +10,8 @@ import {
   Clock,
   Sparkles,
   RefreshCw,
-  ExternalLink
+  ExternalLink,
+  Lock
 } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
 import Card from '../components/common/Card';
@@ -18,10 +19,14 @@ import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
 import Modal from '../components/common/Modal';
 import { fulfillmentAPI } from '../api/fulfillmentAPI';
+import { useAuth } from '../contexts/AuthContext';
 
 const FulfillmentDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user, role } = useAuth();
+  const currentRole = (user?.role || role || '').toLowerCase().trim();
+  const isReadOnly = currentRole === 'sales_rep' || currentRole === 'admin';
 
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState(null);
@@ -236,10 +241,17 @@ const FulfillmentDetailPage = () => {
           <Button variant="secondary" size="sm" icon={RefreshCw} onClick={fetchOrderDetails}>
             Refresh
           </Button>
-          {fulfillments.length === 0 && (
-            <Button variant="primary" size="sm" icon={Sparkles} onClick={loadWarehousesForAllocation}>
-              Allocate to Warehouses
-            </Button>
+          {!isReadOnly ? (
+            fulfillments.length === 0 && (
+              <Button variant="primary" size="sm" icon={Sparkles} onClick={loadWarehousesForAllocation}>
+                Allocate to Warehouses
+              </Button>
+            )
+          ) : (
+            <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+              <Lock className="w-3.5 h-3.5 text-slate-500" />
+              <span>Read-Only Logistics</span>
+            </div>
           )}
         </div>
       </div>
@@ -408,7 +420,7 @@ const FulfillmentDetailPage = () => {
                   <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
                     <span className="text-xs font-bold text-slate-700">{fUnits} Units Allocated</span>
                     <div className="flex items-center gap-2">
-                      {isAllocated && (
+                      {!isReadOnly && isAllocated && (
                         <Button
                           size="xs"
                           variant="primary"
@@ -424,7 +436,7 @@ const FulfillmentDetailPage = () => {
                         </Button>
                       )}
 
-                      {isDispatched && (
+                      {!isReadOnly && isDispatched && (
                         <Button
                           size="xs"
                           variant="success"

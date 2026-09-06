@@ -12,7 +12,7 @@ const { requireRole } = require('../middleware/roleCheck');
 router.get('/', verifyToken, approvalController.getAll);
 router.get('/pending', verifyToken, approvalController.getPending);
 router.get('/:id', verifyToken, approvalController.getById);
-router.put('/:id', verifyToken, requireRole(['SALES_MANAGER', 'FINANCE_APPROVER', 'ADMIN']), approvalController.processApproval);
+router.put('/:id', verifyToken, requireRole(['SALES_MANAGER', 'FINANCE_APPROVER', 'FINANCE_OPS']), approvalController.processApproval);
 router.get('/:id/history', verifyToken, approvalController.getApprovalHistory);
 router.get('/:id/risk', verifyToken, approvalController.getRiskBreakdown);
 

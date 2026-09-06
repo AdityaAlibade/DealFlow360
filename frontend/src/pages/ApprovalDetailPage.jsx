@@ -14,7 +14,7 @@ const ApprovalDetailPage = () => {
   const navigate = useNavigate();
   const { user, role } = useAuth();
   const currentRole = (user?.role || role || '').toLowerCase().trim();
-  const canApprove = currentRole === 'admin' || currentRole === 'sales_manager' || currentRole === 'finance_ops';
+  const canApprove = currentRole === 'sales_manager' || currentRole === 'finance_ops';
 
   const [approval, setApproval] = useState(null);
   const [loading, setLoading] = useState(true);

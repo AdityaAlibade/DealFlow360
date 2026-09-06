@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Filter, ArrowUpRight, ShoppingBag, ArrowRight, RefreshCw, FileText } from 'lucide-react';
+import { Search, Plus, Filter, ArrowUpRight, ShoppingBag, ArrowRight, RefreshCw, FileText, Lock } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
 import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
 import Pagination from '../components/common/Pagination';
 import productAPI from '../api/productAPI';
 import quotationAPI from '../api/quotationAPI';
+import { useAuth } from '../contexts/AuthContext';
 
 const QuotationPage = () => {
   const navigate = useNavigate();
+  const { user, role } = useAuth();
+  const currentRole = (user?.role || role || '').toLowerCase().trim();
+  const canCreateQuotation = currentRole === 'sales_rep';
+
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
@@ -74,13 +79,20 @@ const QuotationPage = () => {
           <Button variant="secondary" size="sm" icon={RefreshCw} onClick={fetchQuotationsAndRequests} disabled={loading}>
             Refresh
           </Button>
-          <Button
-            variant="primary"
-            icon={Plus}
-            onClick={() => navigate('/order-requests')}
-          >
-            New Quotation
-          </Button>
+          {canCreateQuotation ? (
+            <Button
+              variant="primary"
+              icon={Plus}
+              onClick={() => navigate('/order-requests')}
+            >
+              New Quotation
+            </Button>
+          ) : (
+            <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+              <Lock className="w-3.5 h-3.5 text-slate-500" />
+              <span>Read-Only Mode</span>
+            </div>
+          )}
         </div>
       </div>
 
